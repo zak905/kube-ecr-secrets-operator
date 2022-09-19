@@ -28,10 +28,8 @@ type AWSECRCredentialSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// +kubebuilder:validation:MaxLength=253
-	// +kubebuilder:validation:MinLength=1
 	//the name of the secret holding the AWS credentials that will be used to talk to AWS to get ECR credentials
-	AWSCredentialsSecretName string `json:"awsCredentialsSecretName,omitempty"`
+	AWSAccess AWSAccess `json:"awsAccess,omitempty"`
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:MinLength=1
 	//the name of the docker secret that will be created and updated by the operator in each of the specified namespaces
@@ -41,10 +39,21 @@ type AWSECRCredentialSpec struct {
 	Namespaces []string `json:"namespaces,omitempty"`
 }
 
+//AWSAccess defines the AWS access. This will be used by the operator to obtain the ECR credentials from AWS
+type AWSAccess struct {
+	//+kubebuilder:validation:MaxLength=253
+	//+kubebuilder:validation:MinLength=1
+	//the name of the secret holding the AWS credentials that will be used to talk to AWS to get ECR credentials
+	SecretName string `json:"secretName,omitempty"`
+	//+kubebuilder:default=default
+	//the namespace of the secret
+	Namespace string `json:"namespace,omitempty"`
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:resource:scope=Cluster
 
-// AWSECRCredential is the Schema for the awsecrcredentials API
+// AWSECRCredential is the Schema for the awsecrcredentials API. It manages several docker secrets for AWS ECR across different namespaces.
 type AWSECRCredential struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

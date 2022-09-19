@@ -7,5 +7,4 @@ metrics:
 webhook:
   port: 9443
 leaderElection:
-  leaderElect: true
-  resourceName: bf0e0312.zakariaamine.com
+  leaderElect: false

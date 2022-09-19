@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	awsv1alpha1 "github.com/zak905/kube-ecr-secrets-operator/api/v1alpha1"
 	"github.com/zak905/kube-ecr-secrets-operator/controllers"
@@ -85,10 +86,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSECRCredential")
 		os.Exit(1)
 	}
-	if err = (&awsv1alpha1.AWSECRCredential{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSECRCredential")
-		os.Exit(1)
-	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -99,6 +96,10 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
+
+	mgr.GetWebhookServer().Register("/mutate-v1-pod", &webhook.Admission{Handler: &controllers.DockerCredentialsReferesher{Client: mgr.GetClient()}})
+	mgr.GetWebhookServer().Register("/validate-secret-delete", &webhook.Admission{Handler: &controllers.SecretsWatcher{Client: mgr.GetClient()}})
+	mgr.GetWebhookServer().Register("/validate-awsecrcredential", &webhook.Admission{Handler: &controllers.AWSECRCredentialValidator{Client: mgr.GetClient()}})
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

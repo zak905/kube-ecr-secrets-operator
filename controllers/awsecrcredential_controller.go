@@ -24,10 +24,12 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	v1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,6 +61,9 @@ type DockerAuthConfig struct {
 
 //+kubebuilder:rbac:groups=aws.zakariaamine.com,resources=awsecrcredentials,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=aws.zakariaamine.com,resources=awsecrcredentials/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -87,33 +92,11 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	var awsCredentialsSecret v1.Secret
-	//TODO: validate this later
-	secretNameTokens := strings.Split(awsECRCredentials.Spec.AWSCredentialsSecretName, "/")
-	if err := r.Client.Get(ctx, client.ObjectKey{Name: secretNameTokens[1], Namespace: secretNameTokens[0]}, &awsCredentialsSecret); err != nil {
-		return ctrl.Result{}, fmt.Errorf("secret %s not found in namespace %s", secretNameTokens[1], secretNameTokens[0])
+	if err := r.Client.Get(ctx, client.ObjectKey{Name: awsECRCredentials.Spec.AWSAccess.SecretName, Namespace: awsECRCredentials.Spec.AWSAccess.Namespace}, &awsCredentialsSecret); err != nil {
+		return ctrl.Result{}, fmt.Errorf("secret %s not found in namespace %s", awsECRCredentials.Spec.AWSAccess.SecretName, awsECRCredentials.Spec.AWSAccess.Namespace)
 	}
 
-	accessKeyID := string(awsCredentialsSecret.Data["AWS_ACCESS_KEY_ID"])
-	secretAccessKey := string(awsCredentialsSecret.Data["AWS_SECRET_ACCESS_KEY"])
-	region := string(awsCredentialsSecret.Data["AWS_REGION"])
-
-	cfg, err := awsConfig.LoadDefaultConfig(ctx,
-		awsConfig.WithRegion(region),
-		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")))
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	ecrSvc := ecr.NewFromConfig(cfg)
-
-	output, err := ecrSvc.GetAuthorizationToken(ctx, &ecr.GetAuthorizationTokenInput{})
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to get ECR authorization token: %w", err)
-	}
-
-	authData := output.AuthorizationData[0]
-
-	dockerConfig, err := createDockerJSONConfig(*authData.AuthorizationToken, *authData.ProxyEndpoint)
+	dockerConfig, expiresAt, err := createDockerJSONConfig(ctx, awsCredentialsSecret.Data)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to create docker auth info: %w", err)
 	}
@@ -121,7 +104,7 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	for _, namespace := range awsECRCredentials.Spec.Namespaces {
 		log.Info("processing", "namespace", namespace)
 		var dockerSecret v1.Secret
-		if err := r.Client.Get(ctx, client.ObjectKey{Name: awsECRCredentials.Spec.AWSCredentialsSecretName, Namespace: namespace}, &dockerSecret); err != nil {
+		if err := r.Client.Get(ctx, client.ObjectKey{Name: awsECRCredentials.Spec.SecretName, Namespace: namespace}, &dockerSecret); err != nil {
 			statusErr, ok := err.(*apiErrors.StatusError)
 			if !ok {
 				return ctrl.Result{}, fmt.Errorf("could not process API error")
@@ -136,7 +119,7 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 						Name:      awsECRCredentials.Spec.SecretName,
 						Namespace: namespace,
 						Annotations: map[string]string{
-							expiryAnnotation: authData.ExpiresAt.String(),
+							expiryAnnotation: expiresAt.Format(time.RFC3339),
 						},
 						OwnerReferences: []metav1.OwnerReference{{APIVersion: awsECRCredentials.APIVersion, Kind: awsECRCredentials.Kind, UID: awsECRCredentials.GetUID(), Name: awsECRCredentials.Name}},
 					},
@@ -156,8 +139,6 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 			return ctrl.Result{}, fmt.Errorf("got %d status from API server, message: %s", statusErr.ErrStatus.Code, statusErr.Status().Message)
 		}
-
-		//TODO: make the secret field immutable
 	}
 
 	return ctrl.Result{}, nil
@@ -170,22 +151,53 @@ func (r *AWSECRCredentialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func createDockerJSONConfig(token, proxyEndpoint string) ([]byte, error) {
-	url, err := url.Parse(proxyEndpoint)
+func createDockerJSONConfig(ctx context.Context, secretData map[string][]byte) ([]byte, *time.Time, error) {
+	authData, err := getAWSAuthToken(ctx, secretData)
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("unable to get ECR authorization token: %w", err)
 	}
 
-	decodedToken, err := base64.StdEncoding.DecodeString(token)
+	url, err := url.Parse(*authData.ProxyEndpoint)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	decodedToken, err := base64.StdEncoding.DecodeString(*authData.AuthorizationToken)
+	if err != nil {
+		return nil, nil, err
 	}
 	password := strings.Split(string(decodedToken), ":")[1]
 	dockerConfig := DockerAuthConfig{
 		Auths: map[string]DockerServerAuthInfo{
-			url.Hostname(): {Username: "AWS", Password: password, Auth: token},
+			url.Hostname(): {Username: "AWS", Password: password, Auth: *authData.AuthorizationToken},
 		},
 	}
 
-	return json.Marshal(dockerConfig)
+	asJson, err := json.Marshal(dockerConfig)
+
+	return asJson, authData.ExpiresAt, err
+}
+
+func getAWSAuthToken(ctx context.Context, secretData map[string][]byte) (*types.AuthorizationData, error) {
+	accessKeyID := string(secretData["AWS_ACCESS_KEY_ID"])
+	secretAccessKey := string(secretData["AWS_SECRET_ACCESS_KEY"])
+	region := string(secretData["AWS_REGION"])
+
+	cfg, err := awsConfig.LoadDefaultConfig(ctx,
+		awsConfig.WithRegion(region),
+		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	ecrSvc := ecr.NewFromConfig(cfg)
+
+	output, err := ecrSvc.GetAuthorizationToken(ctx, &ecr.GetAuthorizationTokenInput{})
+	if err != nil {
+		return nil, fmt.Errorf("unable to get ECR authorization token: %w", err)
+	}
+
+	return &output.AuthorizationData[0], nil
+
 }
