@@ -28,8 +28,13 @@ func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Re
 
 	if req.Operation == "CREATE" {
 		var awsCredentialsSecret v1.Secret
-		if err := v.Client.Get(ctx, client.ObjectKey{Name: cred.Spec.AWSAccess.SecretName, Namespace: cred.Spec.AWSAccess.Namespace}, &awsCredentialsSecret); err != nil {
-			return admission.Denied(fmt.Sprintf("secret %s not found in namespace %s", cred.Spec.AWSAccess.SecretName, cred.Spec.AWSAccess.Namespace))
+		if err := v.Client.Get(ctx,
+			client.ObjectKey{
+				Name:      cred.Spec.AWSAccess.SecretName,
+				Namespace: cred.Spec.AWSAccess.Namespace,
+			}, &awsCredentialsSecret); err != nil {
+			return admission.Denied(fmt.Sprintf("secret %s not found in namespace %s",
+				cred.Spec.AWSAccess.SecretName, cred.Spec.AWSAccess.Namespace))
 		}
 
 		var namespaceList v1.NamespaceList
@@ -52,8 +57,13 @@ func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Re
 			}
 
 			var dockerSecret v1.Secret
-			if err := v.Client.Get(ctx, client.ObjectKey{Name: cred.Spec.SecretName, Namespace: credNamespace}, &dockerSecret); err == nil {
-				return admission.Denied(fmt.Sprintf("secret %s already exists in namespace %s, choose a different name", cred.Spec.SecretName, credNamespace))
+			if err := v.Client.Get(ctx,
+				client.ObjectKey{
+					Name:      cred.Spec.SecretName,
+					Namespace: credNamespace,
+				}, &dockerSecret); err == nil {
+				return admission.Denied(fmt.Sprintf("secret %s already exists in namespace %s, choose a different name",
+					cred.Spec.SecretName, credNamespace))
 			}
 		}
 	} else if req.Operation == "UPDATE" {
@@ -77,7 +87,7 @@ func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Re
 		}
 	}
 
-	return admission.Allowed("validation successfull")
+	return admission.Allowed("validation successful")
 }
 
 func (v *AWSECRCredentialValidator) InjectDecoder(d *admission.Decoder) error {

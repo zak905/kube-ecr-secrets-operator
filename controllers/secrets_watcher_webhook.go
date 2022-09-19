@@ -44,14 +44,19 @@ func (w *SecretsWatcher) Handle(ctx context.Context, req admission.Request) admi
 				return admission.Errored(http.StatusBadRequest, err)
 			}
 
-			return admission.Denied(fmt.Sprintf("secret is managed by AWSECRCrendentials Object with name %s, and cannot be delete manually, delete parent object", ecrCredential.Name))
+			return admission.Denied(
+				fmt.Sprintf(
+					"secret is managed by AWSECRCrendentials Object with name %s, and cannot be delete manually, delete parent object",
+					ecrCredential.Name,
+				),
+			)
 		}
 	}
 
 	return admission.Allowed("safe to delete secret")
 }
 
-func (r *SecretsWatcher) InjectDecoder(d *admission.Decoder) error {
-	r.decoder = d
+func (w *SecretsWatcher) InjectDecoder(d *admission.Decoder) error {
+	w.decoder = d
 	return nil
 }

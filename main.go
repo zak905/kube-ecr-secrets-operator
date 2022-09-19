@@ -97,9 +97,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	mgr.GetWebhookServer().Register("/mutate-v1-pod", &webhook.Admission{Handler: &controllers.DockerCredentialsReferesher{Client: mgr.GetClient()}})
-	mgr.GetWebhookServer().Register("/validate-secret-delete", &webhook.Admission{Handler: &controllers.SecretsWatcher{Client: mgr.GetClient()}})
-	mgr.GetWebhookServer().Register("/validate-awsecrcredential", &webhook.Admission{Handler: &controllers.AWSECRCredentialValidator{Client: mgr.GetClient()}})
+	mgr.GetWebhookServer().Register("/mutate-v1-pod",
+		&webhook.Admission{
+			Handler: &controllers.DockerCredentialsReferesher{Client: mgr.GetClient()},
+		},
+	)
+	mgr.GetWebhookServer().Register("/validate-secret-delete",
+		&webhook.Admission{
+			Handler: &controllers.SecretsWatcher{Client: mgr.GetClient()},
+		},
+	)
+	mgr.GetWebhookServer().Register("/validate-awsecrcredential",
+		&webhook.Admission{
+			Handler: &controllers.AWSECRCredentialValidator{Client: mgr.GetClient()},
+		},
+	)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

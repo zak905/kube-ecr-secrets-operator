@@ -92,8 +92,14 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	var awsCredentialsSecret v1.Secret
-	if err := r.Client.Get(ctx, client.ObjectKey{Name: awsECRCredentials.Spec.AWSAccess.SecretName, Namespace: awsECRCredentials.Spec.AWSAccess.Namespace}, &awsCredentialsSecret); err != nil {
-		return ctrl.Result{}, fmt.Errorf("secret %s not found in namespace %s", awsECRCredentials.Spec.AWSAccess.SecretName, awsECRCredentials.Spec.AWSAccess.Namespace)
+	if err := r.Client.Get(ctx,
+		client.ObjectKey{
+			Name:      awsECRCredentials.Spec.AWSAccess.SecretName,
+			Namespace: awsECRCredentials.Spec.AWSAccess.Namespace,
+		}, &awsCredentialsSecret); err != nil {
+		return ctrl.Result{}, fmt.Errorf("secret %s not found in namespace %s",
+			awsECRCredentials.Spec.AWSAccess.SecretName,
+			awsECRCredentials.Spec.AWSAccess.Namespace)
 	}
 
 	dockerConfig, expiresAt, err := createDockerJSONConfig(ctx, awsCredentialsSecret.Data)
@@ -104,7 +110,11 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	for _, namespace := range awsECRCredentials.Spec.Namespaces {
 		log.Info("processing", "namespace", namespace)
 		var dockerSecret v1.Secret
-		if err := r.Client.Get(ctx, client.ObjectKey{Name: awsECRCredentials.Spec.SecretName, Namespace: namespace}, &dockerSecret); err != nil {
+		if err := r.Client.Get(ctx,
+			client.ObjectKey{
+				Name:      awsECRCredentials.Spec.SecretName,
+				Namespace: namespace,
+			}, &dockerSecret); err != nil {
 			statusErr, ok := err.(*apiErrors.StatusError)
 			if !ok {
 				return ctrl.Result{}, fmt.Errorf("could not process API error")
@@ -121,7 +131,14 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 						Annotations: map[string]string{
 							expiryAnnotation: expiresAt.Format(time.RFC3339),
 						},
-						OwnerReferences: []metav1.OwnerReference{{APIVersion: awsECRCredentials.APIVersion, Kind: awsECRCredentials.Kind, UID: awsECRCredentials.GetUID(), Name: awsECRCredentials.Name}},
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion: awsECRCredentials.APIVersion,
+								Kind:       awsECRCredentials.Kind,
+								UID:        awsECRCredentials.GetUID(),
+								Name:       awsECRCredentials.Name,
+							},
+						},
 					},
 					Data: map[string][]byte{".dockerconfigjson": dockerConfig},
 				}
@@ -137,7 +154,8 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				continue
 			}
 
-			return ctrl.Result{}, fmt.Errorf("got %d status from API server, message: %s", statusErr.ErrStatus.Code, statusErr.Status().Message)
+			return ctrl.Result{}, fmt.Errorf("got %d status from API server, message: %s",
+				statusErr.ErrStatus.Code, statusErr.Status().Message)
 		}
 	}
 
@@ -173,9 +191,9 @@ func createDockerJSONConfig(ctx context.Context, secretData map[string][]byte) (
 		},
 	}
 
-	asJson, err := json.Marshal(dockerConfig)
+	asJSON, err := json.Marshal(dockerConfig)
 
-	return asJson, authData.ExpiresAt, err
+	return asJSON, authData.ExpiresAt, err
 }
 
 func getAWSAuthToken(ctx context.Context, secretData map[string][]byte) (*types.AuthorizationData, error) {

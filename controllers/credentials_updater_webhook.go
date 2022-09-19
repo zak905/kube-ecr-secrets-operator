@@ -32,7 +32,11 @@ func (r *DockerCredentialsReferesher) Handle(ctx context.Context, req admission.
 	for _, pullSecretRef := range pod.Spec.ImagePullSecrets {
 		log.Info("looking for secret " + pullSecretRef.Name)
 		var pullSecret v1.Secret
-		if err := r.Client.Get(ctx, client.ObjectKey{Name: pullSecretRef.Name, Namespace: pod.Namespace}, &pullSecret); err != nil {
+		if err := r.Client.Get(ctx,
+			client.ObjectKey{
+				Name:      pullSecretRef.Name,
+				Namespace: pod.Namespace,
+			}, &pullSecret); err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 
@@ -50,7 +54,11 @@ func (r *DockerCredentialsReferesher) Handle(ctx context.Context, req admission.
 				log.Info("found parent " + ecrCredential.Name + ",getting AWS secret")
 
 				var awsAccessSecret v1.Secret
-				if err := r.Client.Get(ctx, client.ObjectKey{Name: ecrCredential.Spec.AWSAccess.SecretName, Namespace: ecrCredential.Spec.AWSAccess.Namespace}, &awsAccessSecret); err != nil {
+				if err := r.Client.Get(ctx,
+					client.ObjectKey{
+						Name:      ecrCredential.Spec.AWSAccess.SecretName,
+						Namespace: ecrCredential.Spec.AWSAccess.Namespace,
+					}, &awsAccessSecret); err != nil {
 					return admission.Errored(http.StatusBadRequest, err)
 				}
 
@@ -71,7 +79,14 @@ func (r *DockerCredentialsReferesher) Handle(ctx context.Context, req admission.
 							Annotations: map[string]string{
 								expiryAnnotation: expiresAt.Format(time.RFC3339),
 							},
-							OwnerReferences: []metav1.OwnerReference{{APIVersion: ecrCredential.APIVersion, Kind: ecrCredential.Kind, UID: ecrCredential.GetUID(), Name: ecrCredential.Name}},
+							OwnerReferences: []metav1.OwnerReference{
+								{
+									APIVersion: ecrCredential.APIVersion,
+									Kind:       ecrCredential.Kind,
+									UID:        ecrCredential.GetUID(),
+									Name:       ecrCredential.Name,
+								},
+							},
 						},
 						Data: map[string][]byte{".dockerconfigjson": dockerConfig},
 					}
