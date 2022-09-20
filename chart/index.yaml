@@ -1,0 +1,50 @@
+apiVersion: v1
+entries:
+  cert-manager:
+  - annotations:
+      artifacthub.io/prerelease: "false"
+      artifacthub.io/signKey: |
+        fingerprint: 1020CF3C033D4F35BAE1C19E1226061C665DF13E
+        url: https://cert-manager.io/public-keys/cert-manager-keyring-2021-09-20-1020CF3C033D4F35BAE1C19E1226061C665DF13E.gpg
+    apiVersion: v1
+    appVersion: v1.9.1
+    created: "2022-09-20T15:43:34.903571086+02:00"
+    description: A Helm chart for cert-manager
+    digest: 46273177b5ca6930af8047cd52bf0b784c8482ac042e7812d08643c2898692d5
+    home: https://github.com/cert-manager/cert-manager
+    icon: https://raw.githubusercontent.com/cert-manager/cert-manager/d53c0b9270f8cd90d908460d69502694e1838f5f/logo/logo-small.png
+    keywords:
+    - cert-manager
+    - kube-lego
+    - letsencrypt
+    - tls
+    kubeVersion: '>= 1.19.0-0'
+    maintainers:
+    - email: cert-manager-maintainers@googlegroups.com
+      name: cert-manager-maintainers
+      url: https://cert-manager.io
+    name: cert-manager
+    sources:
+    - https://github.com/cert-manager/cert-manager
+    urls:
+    - charts/cert-manager-v1.9.1.tgz
+    version: v1.9.1
+  kube-ecr-secrets-operator:
+  - apiVersion: v2
+    appVersion: 0.0.0
+    created: "2022-09-20T15:43:34.898678312+02:00"
+    dependencies:
+    - alias: certManager
+      condition: certManager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: v1.9.1
+    description: Kubernetes Operator for managing AWS ECR (Elastic Container Registry)
+      secrets cluster wide.
+    digest: 697a9699c57b28c855d7031fb55deef6cf16c3fd7272b8906695743425746945
+    name: kube-ecr-secrets-operator
+    type: application
+    urls:
+    - kube-ecr-secrets-operator-0.1.0.tgz
+    version: 0.1.0
+generated: "2022-09-20T15:43:34.892882953+02:00"

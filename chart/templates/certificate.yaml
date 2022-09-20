@@ -1,0 +1,20 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: ecr-operator-selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ecr-operator-serving-cert
+spec:
+  dnsNames:
+  - ecr-operator-webhook-service.{{ .Release.Namespace }}.svc
+  - ecr-operator-webhook-service.{{  .Release.Namespace  }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: ecr-operator-selfsigned-issuer
+  secretName: webhook-server-cert
+

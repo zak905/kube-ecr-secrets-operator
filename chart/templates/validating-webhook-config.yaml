@@ -1,0 +1,28 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/ecr-operator-serving-cert
+  name: ecr-operator-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: ecr-operator-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-awsecrcredential
+  failurePolicy: Fail
+  name: ecrcredential.aws.zakariaamine.com
+  rules:
+  - apiGroups:
+    - aws.zakariaamine.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - awsecrcredentials
+  sideEffects: None
