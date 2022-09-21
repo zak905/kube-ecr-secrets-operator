@@ -46,10 +46,12 @@ The idea of this operator is to avoid doing busy polling (e.g refreshing secrets
 
 ## Installation and Usage:
 
+The operator expects [cert-manager](https://github.com/cert-manager/cert-manager) to be present in the cluster, since it makes use of `Issuer` and `Certificate` kinds. Because there are some gotchas related to having cert-manager as a subchart(See this [issue](https://github.com/cert-manager/cert-manager/issues/3246) and this [issue](https://github.com/cert-manager/cert-manager/issues/3116) for more details ), kube-ecr-secrets-operator leaves the responsibility to chart consumer to install it. Installation instructions can be found in the official [docs](https://cert-manager.io/docs/installation/helm/)
+
 The operator can be installed using helm:
 
 ```
-helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator
+helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator/chart
 
 helm repo update 
 

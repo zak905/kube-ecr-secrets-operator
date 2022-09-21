@@ -25,9 +25,3 @@ keywords:
   - AWS
   - ECR
   - Operator
-dependencies:
-  - name: cert-manager
-    condition: certManager.enabled
-    version: v1.9.1
-    repository: https://charts.jetstack.io
-    alias: certManager

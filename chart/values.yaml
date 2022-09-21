@@ -14,9 +14,5 @@ tolerations: []
 
 affinity: {}
 
-certManager:
-  enabled: true
-  namespace: cert-manager
-
 service:
   port: 433
