@@ -15,4 +15,4 @@ tolerations: []
 affinity: {}
 
 service:
-  port: 433
+  port: 443
