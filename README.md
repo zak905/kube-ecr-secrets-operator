@@ -1,3 +1,5 @@
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/kube-ecr-secrets-operator)](https://artifacthub.io/packages/search?repo=kube-ecr-secrets-operator)
+
 ## kube-ecr-secrets-operator:
 
 ![diagram](diagram.png)
