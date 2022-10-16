@@ -39,7 +39,7 @@ type AWSECRCredentialSpec struct {
 	Namespaces []string `json:"namespaces,omitempty"`
 }
 
-//AWSAccess defines the AWS access. This will be used by the operator to obtain the ECR credentials from AWS
+// AWSAccess defines the AWS access. This will be used by the operator to obtain the ECR credentials from AWS
 type AWSAccess struct {
 	//+kubebuilder:validation:MaxLength=253
 	//+kubebuilder:validation:MinLength=1
