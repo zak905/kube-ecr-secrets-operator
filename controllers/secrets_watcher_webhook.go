@@ -46,7 +46,7 @@ func (w *SecretsWatcher) Handle(ctx context.Context, req admission.Request) admi
 
 			return admission.Denied(
 				fmt.Sprintf(
-					"secret is managed by AWSECRCrendentials Object with name %s, and cannot be delete manually, delete parent object",
+					"secret is managed by AWSECRCrendentials Object with name %s, and cannot be deleted manually, delete parent object",
 					ecrCredential.Name,
 				),
 			)
