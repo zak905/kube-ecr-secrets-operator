@@ -15,14 +15,14 @@ import (
 
 type SecretsWatcher struct {
 	Client  client.Client
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 }
 
 //+kubebuilder:webhook:path=/validate-secret-delete,admissionReviewVersions=v1;v1beta1,mutating=true,failurePolicy=fail,groups="",resources=secrets,verbs=delete,versions=v1,name=secret.aws.zakariaamine.com,sideEffects=NoneOnDryRun
 
 func (w *SecretsWatcher) Handle(ctx context.Context, req admission.Request) admission.Response {
 	var secret v1.Secret
-	if err := w.decoder.DecodeRaw(req.OldObject, &secret); err != nil {
+	if err := w.Decoder.DecodeRaw(req.OldObject, &secret); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
@@ -54,9 +54,4 @@ func (w *SecretsWatcher) Handle(ctx context.Context, req admission.Request) admi
 	}
 
 	return admission.Allowed("safe to delete secret")
-}
-
-func (w *SecretsWatcher) InjectDecoder(d *admission.Decoder) error {
-	w.decoder = d
-	return nil
 }

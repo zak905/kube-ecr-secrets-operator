@@ -16,7 +16,7 @@ import (
 
 type DockerCredentialsReferesher struct {
 	Client  client.Client
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 }
 
 //+kubebuilder:webhook:path=/mutate-v1-pod,admissionReviewVersions=v1;v1beta1,mutating=true,failurePolicy=fail,groups="",resources=pods,verbs=create;update,versions=v1,name=awsecrcredential.zakariaamine.com,sideEffects=NoneOnDryRun
@@ -24,7 +24,7 @@ type DockerCredentialsReferesher struct {
 func (r *DockerCredentialsReferesher) Handle(ctx context.Context, req admission.Request) admission.Response {
 	log := log.FromContext(ctx)
 	pod := &v1.Pod{}
-	err := r.decoder.Decode(req, pod)
+	err := r.Decoder.Decode(req, pod)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -103,9 +103,4 @@ func (r *DockerCredentialsReferesher) Handle(ctx context.Context, req admission.
 	}
 
 	return admission.Allowed("ecr credentials updated successfully")
-}
-
-func (r *DockerCredentialsReferesher) InjectDecoder(d *admission.Decoder) error {
-	r.decoder = d
-	return nil
 }

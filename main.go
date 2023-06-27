@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	awsv1alpha1 "github.com/zak905/kube-ecr-secrets-operator/api/v1alpha1"
 	"github.com/zak905/kube-ecr-secrets-operator/controllers"
@@ -99,17 +100,17 @@ func main() {
 
 	mgr.GetWebhookServer().Register("/mutate-v1-pod",
 		&webhook.Admission{
-			Handler: &controllers.DockerCredentialsReferesher{Client: mgr.GetClient()},
+			Handler: &controllers.DockerCredentialsReferesher{Client: mgr.GetClient(), Decoder: admission.NewDecoder(mgr.GetScheme())},
 		},
 	)
 	mgr.GetWebhookServer().Register("/validate-secret-delete",
 		&webhook.Admission{
-			Handler: &controllers.SecretsWatcher{Client: mgr.GetClient()},
+			Handler: &controllers.SecretsWatcher{Client: mgr.GetClient(), Decoder: admission.NewDecoder(scheme)},
 		},
 	)
 	mgr.GetWebhookServer().Register("/validate-awsecrcredential",
 		&webhook.Admission{
-			Handler: &controllers.AWSECRCredentialValidator{Client: mgr.GetClient()},
+			Handler: &controllers.AWSECRCredentialValidator{Client: mgr.GetClient(), Decoder: admission.NewDecoder(mgr.GetScheme())},
 		},
 	)
 

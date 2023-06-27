@@ -14,14 +14,14 @@ import (
 
 type AWSECRCredentialValidator struct {
 	Client  client.Client
-	decoder *admission.Decoder
+	Decoder *admission.Decoder
 }
 
 //+kubebuilder:webhook:path=/validate-awsecrcredential,mutating=false,admissionReviewVersions=v1;v1beta1,failurePolicy=fail,groups=aws.zakariaamine.com,resources=awsecrcredentials,verbs=create;update,versions=v1alpha1,name=ecrcredential.aws.zakariaamine.com,sideEffects=None
 
 func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	var cred v1alpha1.AWSECRCredential
-	err := v.decoder.Decode(req, &cred)
+	err := v.Decoder.Decode(req, &cred)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -35,6 +35,12 @@ func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Re
 			}, &awsCredentialsSecret); err != nil {
 			return admission.Denied(fmt.Sprintf("secret %s not found in namespace %s",
 				cred.Spec.AWSAccess.SecretName, cred.Spec.AWSAccess.Namespace))
+		}
+
+		// check if AWS credentials are working
+		if _, err := getAWSAuthToken(ctx, awsCredentialsSecret.Data); err != nil {
+			return admission.Denied(fmt.Sprintf("aws credentials in secret %s in namespace %s are invalid or missing permissions: %s",
+				awsCredentialsSecret.Name, awsCredentialsSecret.Namespace, err.Error()))
 		}
 
 		var namespaceList v1.NamespaceList
@@ -68,12 +74,12 @@ func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Re
 		}
 	} else if req.Operation == "UPDATE" {
 		var oldObj v1alpha1.AWSECRCredential
-		if err := v.decoder.DecodeRaw(req.OldObject, &oldObj); err != nil {
+		if err := v.Decoder.DecodeRaw(req.OldObject, &oldObj); err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 
 		var newObj v1alpha1.AWSECRCredential
-		err := v.decoder.Decode(req, &newObj)
+		err := v.Decoder.Decode(req, &newObj)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
@@ -88,9 +94,4 @@ func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Re
 	}
 
 	return admission.Allowed("validation successful")
-}
-
-func (v *AWSECRCredentialValidator) InjectDecoder(d *admission.Decoder) error {
-	v.decoder = d
-	return nil
 }
