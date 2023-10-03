@@ -50,3 +50,11 @@ rules:
   - awsecrcredentials/finalizers
   verbs:
   - update
+- apiGroups:
+  - aws.zakariaamine.com
+  resources:
+  - awsecrcredentials/status
+  verbs:
+  - get
+  - patch
+  - update
