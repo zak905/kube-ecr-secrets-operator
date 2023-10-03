@@ -3,7 +3,8 @@ kind: Deployment
 metadata:
   labels:
     control-plane: controller-manager
-  name: ecr-operator-controller-manager
+{{- include "kube-ecr-secrets-operator.selectorLabels" . | nindent 4 }}
+  name: {{ include "kube-ecr-secrets-operator.name" . }}-controller-manager
 spec:
   replicas: 1
   selector:
@@ -18,11 +19,12 @@ spec:
     {{- end }}
       labels:
         control-plane: controller-manager
+{{- include "kube-ecr-secrets-operator.selectorLabels" . | nindent 8 }}
     spec:
       containers:
       - command:
         - /manager
-        image: ghcr.io/zak905/kube-ecr-secrets-operator/controller-manager:latest
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -40,8 +42,10 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+{{- if .Values.resources }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}
+{{- end }}
         securityContext:
           allowPrivilegeEscalation: false
         volumeMounts:
@@ -50,16 +54,23 @@ spec:
           readOnly: true
       securityContext:
         runAsNonRoot: true
-      serviceAccountName: ecr-operator-controller-manager
+      serviceAccountName: {{ include "kube-ecr-secrets-operator.name" . }}-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
       - name: cert
         secret:
           defaultMode: 420
           secretName: webhook-server-cert
+{{- if .Values.affinity }}
       affinity:
 {{ toYaml .Values.affinity | indent 8 }}
+{{- end }}
+{{- if .Values.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
+{{- end }}
+{{- if .Values.tolerations }}
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
+{{- end }}
+

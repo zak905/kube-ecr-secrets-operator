@@ -2,12 +2,15 @@ package controllers
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
 
 	"github.com/zak905/kube-ecr-secrets-operator/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -17,7 +20,7 @@ type AWSECRCredentialValidator struct {
 	Decoder *admission.Decoder
 }
 
-//+kubebuilder:webhook:path=/validate-awsecrcredential,mutating=false,admissionReviewVersions=v1;v1beta1,failurePolicy=fail,groups=aws.zakariaamine.com,resources=awsecrcredentials,verbs=create;update,versions=v1alpha1,name=ecrcredential.aws.zakariaamine.com,sideEffects=None
+//+kubebuilder:webhook:path=/validate-mutate-awsecrcredential,mutating=true,admissionReviewVersions=v1;v1beta1,failurePolicy=fail,groups=aws.zakariaamine.com,resources=awsecrcredentials,verbs=create;update,versions=v1alpha1,name=ecrcredential.zakariaamine.com,sideEffects=NoneOnDryRun
 
 func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	var cred v1alpha1.AWSECRCredential
@@ -26,21 +29,14 @@ func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Re
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	if req.Operation == "CREATE" {
-		var awsCredentialsSecret v1.Secret
-		if err := v.Client.Get(ctx,
-			client.ObjectKey{
-				Name:      cred.Spec.AWSAccess.SecretName,
-				Namespace: cred.Spec.AWSAccess.Namespace,
-			}, &awsCredentialsSecret); err != nil {
-			return admission.Denied(fmt.Sprintf("secret %s not found in namespace %s",
-				cred.Spec.AWSAccess.SecretName, cred.Spec.AWSAccess.Namespace))
-		}
+	response := admission.Allowed("validation successful")
 
+	if req.Operation == "CREATE" {
 		// check if AWS credentials are working
-		if _, err := getAWSAuthToken(ctx, awsCredentialsSecret.Data); err != nil {
-			return admission.Denied(fmt.Sprintf("aws credentials in secret %s in namespace %s are invalid or missing permissions: %s",
-				awsCredentialsSecret.Name, awsCredentialsSecret.Namespace, err.Error()))
+		awsAccess := cred.Spec.AWSAccess
+		if _, err := getAWSECRAuthToken(ctx, awsAccess.AccessKeyID, awsAccess.SecretAccessKey, awsAccess.Region); err != nil {
+			return admission.Denied(fmt.Sprintf("aws credentials specified in .spec.awsAccess are invalid or missing permissions: %s",
+				err.Error()))
 		}
 
 		var namespaceList v1.NamespaceList
@@ -68,10 +64,20 @@ func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Re
 					Name:      cred.Spec.SecretName,
 					Namespace: credNamespace,
 				}, &dockerSecret); err == nil {
-				return admission.Denied(fmt.Sprintf("secret %s already exists in namespace %s, choose a different name",
+				return admission.Denied(fmt.Sprintf("secret %s already exists in namespace %s, you can choose a different name",
 					cred.Spec.SecretName, credNamespace))
+			} else if !errors.IsNotFound(err) {
+				return admission.Errored(http.StatusInternalServerError, err)
 			}
 		}
+		//do base64 for the aws credentials, like K8 does for secrets
+		cred.Spec.AWSAccess.AccessKeyID = base64.StdEncoding.EncodeToString([]byte(cred.Spec.AWSAccess.AccessKeyID))
+		cred.Spec.AWSAccess.SecretAccessKey = base64.StdEncoding.EncodeToString([]byte(cred.Spec.AWSAccess.SecretAccessKey))
+		marshaledCred, err := json.Marshal(cred)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		response = admission.PatchResponseFromRaw(req.Object.Raw, marshaledCred)
 	} else if req.Operation == "UPDATE" {
 		var oldObj v1alpha1.AWSECRCredential
 		if err := v.Decoder.DecodeRaw(req.OldObject, &oldObj); err != nil {
@@ -89,9 +95,15 @@ func (v *AWSECRCredentialValidator) Handle(ctx context.Context, req admission.Re
 		}
 
 		if !reflect.DeepEqual(oldObj.Spec.AWSAccess, newObj.Spec.AWSAccess) {
-			return admission.Denied("awsAccess is immutable")
+			newObj.Spec.AWSAccess.AccessKeyID = base64.StdEncoding.EncodeToString([]byte(newObj.Spec.AWSAccess.AccessKeyID))
+			newObj.Spec.AWSAccess.SecretAccessKey = base64.StdEncoding.EncodeToString([]byte(newObj.Spec.AWSAccess.SecretAccessKey))
+			marshaledCred, err := json.Marshal(newObj)
+			if err != nil {
+				return admission.Errored(http.StatusInternalServerError, err)
+			}
+			response = admission.PatchResponseFromRaw(req.Object.Raw, marshaledCred)
 		}
 	}
 
-	return admission.Allowed("validation successful")
+	return response
 }

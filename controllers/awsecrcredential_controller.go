@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -76,90 +75,58 @@ type DockerAuthConfig struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
+	result := ctrl.Result{}
 
-	var awsECRCredentials awsv1alpha1.AWSECRCredential
-	if err := r.Client.Get(ctx, client.ObjectKey{Name: req.Name}, &awsECRCredentials); err != nil {
-		statusErr, ok := err.(*apiErrors.StatusError)
-		if !ok {
-			return ctrl.Result{}, fmt.Errorf("could not process API error")
-		}
-
-		if statusErr.ErrStatus.Code == http.StatusNotFound {
+	awsECRCredentials := &awsv1alpha1.AWSECRCredential{}
+	if err := r.Client.Get(ctx, client.ObjectKey{Name: req.Name}, awsECRCredentials); err != nil {
+		if apiErrors.IsNotFound(err) {
 			//means object was deleted, so we do nothing
-			return ctrl.Result{}, nil
+			return result, nil
 		}
-		return ctrl.Result{}, err
+		return result, err
 	}
 
-	var awsCredentialsSecret v1.Secret
-	if err := r.Client.Get(ctx,
-		client.ObjectKey{
-			Name:      awsECRCredentials.Spec.AWSAccess.SecretName,
-			Namespace: awsECRCredentials.Spec.AWSAccess.Namespace,
-		}, &awsCredentialsSecret); err != nil {
-		return ctrl.Result{}, fmt.Errorf("secret %s not found in namespace %s",
-			awsECRCredentials.Spec.AWSAccess.SecretName,
-			awsECRCredentials.Spec.AWSAccess.Namespace)
-	}
-
-	dockerConfig, expiresAt, err := createDockerJSONConfig(ctx, awsCredentialsSecret.Data)
+	dockerConfig, expiresAt, err := getDockerJSONConfigFromAWS(ctx, awsECRCredentials.Spec.AWSAccess)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to create docker auth info: %w", err)
+		return result, fmt.Errorf("unable to create docker secret: %w", err)
 	}
 
 	for _, namespace := range awsECRCredentials.Spec.Namespaces {
 		log.Info("processing", "namespace", namespace)
-		var dockerSecret v1.Secret
+		existingDockerSecret := &v1.Secret{}
 		if err := r.Client.Get(ctx,
 			client.ObjectKey{
 				Name:      awsECRCredentials.Spec.SecretName,
 				Namespace: namespace,
-			}, &dockerSecret); err != nil {
-			statusErr, ok := err.(*apiErrors.StatusError)
-			if !ok {
-				return ctrl.Result{}, fmt.Errorf("could not process API error")
+			}, existingDockerSecret); err != nil {
+
+			if !apiErrors.IsNotFound(err) {
+				return result, fmt.Errorf("got %s status from API server: %w",
+					apiErrors.ReasonForError(err), err)
 			}
 
-			log.Info("looking for existing secret", "status", statusErr.ErrStatus.Code)
+			log.Info("creating secret", "namespace", namespace)
 
-			if statusErr.ErrStatus.Code == http.StatusNotFound {
-				dockerSecret = v1.Secret{
-					Type: v1.SecretTypeDockerConfigJson,
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      awsECRCredentials.Spec.SecretName,
-						Namespace: namespace,
-						Annotations: map[string]string{
-							expiryAnnotation: expiresAt.Format(time.RFC3339),
-						},
-						OwnerReferences: []metav1.OwnerReference{
-							{
-								APIVersion: awsECRCredentials.APIVersion,
-								Kind:       awsECRCredentials.Kind,
-								UID:        awsECRCredentials.GetUID(),
-								Name:       awsECRCredentials.Name,
-							},
-						},
-					},
-					Data: map[string][]byte{".dockerconfigjson": dockerConfig},
-				}
-
-				log.Info("creating secret", "namespace", namespace)
-
-				if err := r.Client.Create(ctx, &dockerSecret); err != nil {
-					return ctrl.Result{}, fmt.Errorf("error creating docker secret in namespace %s, %w", namespace, err)
-				}
-
-				log.Info("creating secret", "namespace", namespace)
-
-				continue
+			dockerSecret := newDockerSecret(ctx, awsECRCredentials, dockerConfig, expiresAt)
+			dockerSecret.Namespace = namespace
+			if err := r.Client.Create(ctx, dockerSecret); err != nil {
+				return result, fmt.Errorf("error creating docker secret in namespace %s, %w", namespace, err)
 			}
 
-			return ctrl.Result{}, fmt.Errorf("got %d status from API server, message: %s",
-				statusErr.ErrStatus.Code, statusErr.Status().Message)
+			log.Info("creating secret", "namespace", namespace)
+
+		} else {
+			existingDockerSecret.Data[".dockerconfigjson"] = dockerConfig
+			existingDockerSecret.Annotations[expiryAnnotation] = expiresAt.Format(time.RFC3339)
+			if err := r.Client.Update(ctx, existingDockerSecret); err != nil {
+				return result, fmt.Errorf("error update docker secret in namespace %s, %w", namespace, err)
+			}
 		}
 	}
 
-	return ctrl.Result{}, nil
+	result.RequeueAfter = time.Until(*expiresAt)
+
+	return result, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -169,8 +136,17 @@ func (r *AWSECRCredentialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func createDockerJSONConfig(ctx context.Context, secretData map[string][]byte) ([]byte, *time.Time, error) {
-	authData, err := getAWSAuthToken(ctx, secretData)
+func getDockerJSONConfigFromAWS(ctx context.Context, access awsv1alpha1.AWSAccess) ([]byte, *time.Time, error) {
+	awsAccessKeyID, err := base64.StdEncoding.DecodeString(access.AccessKeyID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to base64 decode the accessKeyID: %w", err)
+	}
+	awsSecretAccessKey, err := base64.StdEncoding.DecodeString(access.SecretAccessKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to base64 decode the secretAccessKey: %w", err)
+	}
+
+	authData, err := getAWSECRAuthToken(ctx, string(awsAccessKeyID), string(awsSecretAccessKey), access.Region)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to get ECR authorization token: %w", err)
 	}
@@ -196,11 +172,7 @@ func createDockerJSONConfig(ctx context.Context, secretData map[string][]byte) (
 	return asJSON, authData.ExpiresAt, err
 }
 
-func getAWSAuthToken(ctx context.Context, secretData map[string][]byte) (*types.AuthorizationData, error) {
-	accessKeyID := string(secretData["AWS_ACCESS_KEY_ID"])
-	secretAccessKey := string(secretData["AWS_SECRET_ACCESS_KEY"])
-	region := string(secretData["AWS_REGION"])
-
+func getAWSECRAuthToken(ctx context.Context, accessKeyID, secretAccessKey, region string) (*types.AuthorizationData, error) {
 	cfg, err := awsConfig.LoadDefaultConfig(ctx,
 		awsConfig.WithRegion(region),
 		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")),
@@ -217,5 +189,28 @@ func getAWSAuthToken(ctx context.Context, secretData map[string][]byte) (*types.
 	}
 
 	return &output.AuthorizationData[0], nil
+}
 
+// Creates the Kubernetes secret
+// the created secret has the namespace not set
+func newDockerSecret(ctx context.Context, ecrCredential *awsv1alpha1.AWSECRCredential,
+	dockerConfig []byte, expiresAt *time.Time) *v1.Secret {
+	return &v1.Secret{
+		Type: v1.SecretTypeDockerConfigJson,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ecrCredential.Spec.SecretName,
+			Annotations: map[string]string{
+				expiryAnnotation: expiresAt.Format(time.RFC3339),
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: ecrCredential.APIVersion,
+					Kind:       ecrCredential.Kind,
+					UID:        ecrCredential.GetUID(),
+					Name:       ecrCredential.Name,
+				},
+			},
+		},
+		Data: map[string][]byte{".dockerconfigjson": dockerConfig},
+	}
 }

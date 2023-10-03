@@ -23,6 +23,9 @@ testbin/*
 *.swp
 *.swo
 *~
+.vscode
 
 
 vendor
+
+manager
