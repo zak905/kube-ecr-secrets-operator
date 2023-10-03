@@ -7,10 +7,9 @@ metadata:
   name: my-ecr-credentials
 spec:
   awsAccess:
-    #secret containing AWS access used to get the ECR secret from AWS
-    secretName: aws-access
-    #optional namespace of the aws-access secret. Defaults to default.
-    namespace: default
+    accessKeyId: YOUR_AWS_ACCESS_KEY_ID
+    secretAccessKey: YOUR_AWS_SECRET_ACCESS_KEY
+    region: YOUR_REGISTRY_REGION
   #the name of the K8 secret that will be created
   secretName: ecr-login
   #all the namespaces in which the operator will create and manage ecr secrets

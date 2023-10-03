@@ -40,6 +40,18 @@ import (
 	awsv1alpha1 "github.com/zak905/kube-ecr-secrets-operator/api/v1alpha1"
 )
 
+const (
+	SecretsProcessingReason = "SecretsProcessing"
+	SecretsUpdatedReason    = "SecretsUpdated"
+
+	ReadyCondition    = "Ready"
+	ProgressCondition = "Progress"
+
+	SecretsUpdatedMessageTemplate = "AWS ECR secret with type kubernetes.io/dockerconfigjson have been created/updated successfully in namespaces: %s" +
+		" next update at: %s"
+	SecretsProcessingMessageTemplate = "creating/updating secrets in namespaces: %s"
+)
+
 // AWSECRCredentialReconciler reconciles a AWSECRCredential object
 type AWSECRCredentialReconciler struct {
 	client.Client
@@ -60,6 +72,7 @@ type DockerAuthConfig struct {
 
 //+kubebuilder:rbac:groups=aws.zakariaamine.com,resources=awsecrcredentials,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=aws.zakariaamine.com,resources=awsecrcredentials/finalizers,verbs=update
+//+kubebuilder:rbac:groups=aws.zakariaamine.com,resources=awsecrcredentials/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=list;watch
@@ -91,6 +104,16 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return result, fmt.Errorf("unable to create docker secret: %w", err)
 	}
 
+	if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
+		LastTransitionTime: metav1.Now(),
+		Status:             metav1.ConditionTrue,
+		Type:               ProgressCondition,
+		Reason:             SecretsProcessingReason,
+		Message:            fmt.Sprintf(SecretsProcessingMessageTemplate, awsECRCredentials.Spec.Namespaces),
+	}); err != nil {
+		return result, err
+	}
+
 	for _, namespace := range awsECRCredentials.Spec.Namespaces {
 		log.Info("processing", "namespace", namespace)
 		existingDockerSecret := &v1.Secret{}
@@ -101,8 +124,17 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			}, existingDockerSecret); err != nil {
 
 			if !apiErrors.IsNotFound(err) {
-				return result, fmt.Errorf("got %s status from API server: %w",
-					apiErrors.ReasonForError(err), err)
+				wrappedErr := fmt.Errorf("got %s status from API server: %w", apiErrors.ReasonForError(err), err)
+				if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
+					LastTransitionTime: metav1.Now(),
+					Status:             metav1.ConditionFalse,
+					Type:               ProgressCondition,
+					Reason:             SecretsProcessingReason,
+					Message:            wrappedErr.Error(),
+				}); err != nil {
+					return result, err
+				}
+				return result, wrappedErr
 			}
 
 			log.Info("creating secret", "namespace", namespace)
@@ -110,18 +142,47 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			dockerSecret := newDockerSecret(ctx, awsECRCredentials, dockerConfig, expiresAt)
 			dockerSecret.Namespace = namespace
 			if err := r.Client.Create(ctx, dockerSecret); err != nil {
-				return result, fmt.Errorf("error creating docker secret in namespace %s, %w", namespace, err)
+				wrappedErr := fmt.Errorf("error creating docker secret in namespace %s, %w", namespace, err)
+				if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
+					LastTransitionTime: metav1.Now(),
+					Status:             metav1.ConditionFalse,
+					Type:               ProgressCondition,
+					Reason:             SecretsProcessingReason,
+					Message:            wrappedErr.Error(),
+				}); err != nil {
+					return result, err
+				}
+				return result, wrappedErr
 			}
 
 			log.Info("creating secret", "namespace", namespace)
-
 		} else {
 			existingDockerSecret.Data[".dockerconfigjson"] = dockerConfig
 			existingDockerSecret.Annotations[expiryAnnotation] = expiresAt.Format(time.RFC3339)
 			if err := r.Client.Update(ctx, existingDockerSecret); err != nil {
-				return result, fmt.Errorf("error update docker secret in namespace %s, %w", namespace, err)
+				wrappedErr := fmt.Errorf("error update docker secret in namespace %s, %w", namespace, err)
+				if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
+					LastTransitionTime: metav1.Now(),
+					Status:             metav1.ConditionFalse,
+					Type:               ProgressCondition,
+					Reason:             SecretsProcessingReason,
+					Message:            wrappedErr.Error(),
+				}); err != nil {
+					return result, err
+				}
+				return result, wrappedErr
 			}
 		}
+	}
+
+	if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
+		LastTransitionTime: metav1.Now(),
+		Status:             metav1.ConditionTrue,
+		Type:               ReadyCondition,
+		Reason:             SecretsUpdatedReason,
+		Message:            fmt.Sprintf(SecretsUpdatedMessageTemplate, awsECRCredentials.Spec.Namespaces, expiresAt.String()),
+	}); err != nil {
+		return result, err
 	}
 
 	result.RequeueAfter = time.Until(*expiresAt)
@@ -134,6 +195,16 @@ func (r *AWSECRCredentialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&awsv1alpha1.AWSECRCredential{}).
 		Complete(r)
+}
+
+func (r *AWSECRCredentialReconciler) setStatus(ctx context.Context, credential *awsv1alpha1.AWSECRCredential, condition metav1.Condition) error {
+	credential.Status.Conditions = setStatusCondition(credential.Status.Conditions, condition)
+
+	if err := r.Client.Status().Update(ctx, credential); err != nil {
+		return fmt.Errorf("failed updating AWSECRCredential status: %w", err)
+	}
+
+	return nil
 }
 
 func getDockerJSONConfigFromAWS(ctx context.Context, access awsv1alpha1.AWSAccess) ([]byte, *time.Time, error) {
@@ -213,4 +284,21 @@ func newDockerSecret(ctx context.Context, ecrCredential *awsv1alpha1.AWSECRCrede
 		},
 		Data: map[string][]byte{".dockerconfigjson": dockerConfig},
 	}
+}
+
+func setStatusCondition(conditions []metav1.Condition, searchedCondition metav1.Condition) []metav1.Condition {
+	var found bool
+	for _, condition := range conditions {
+		if condition.Reason == searchedCondition.Reason {
+			condition = searchedCondition
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		conditions = append(conditions, searchedCondition)
+	}
+
+	return conditions
 }
