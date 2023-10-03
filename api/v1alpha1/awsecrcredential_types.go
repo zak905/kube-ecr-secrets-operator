@@ -41,13 +41,15 @@ type AWSECRCredentialSpec struct {
 
 // AWSAccess defines the AWS access. This will be used by the operator to obtain the ECR credentials from AWS
 type AWSAccess struct {
-	//+kubebuilder:validation:MaxLength=253
-	//+kubebuilder:validation:MinLength=1
-	//the name of the secret holding the AWS credentials that will be used to talk to AWS to get ECR credentials
-	SecretName string `json:"secretName,omitempty"`
-	//+kubebuilder:default=default
-	//the namespace of the secret
-	Namespace string `json:"namespace,omitempty"`
+	//+kubebuilder:validation:Required
+	//AWS access key associated with an IAM account that will be used to create and refresh ECR docker credentials
+	AccessKeyID string `json:"accessKeyId"`
+	//+kubebuilder:validation:Required
+	//the secret key associated with the access key.
+	SecretAccessKey string `json:"secretAccessKey"`
+	//+kubebuilder:validation:Required
+	//specifies the AWS Region to send the request to
+	Region string `json:"region"`
 }
 
 //+kubebuilder:object:root=true

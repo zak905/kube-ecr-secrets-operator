@@ -1,20 +1,27 @@
+---
 apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
+kind: MutatingWebhookConfiguration
 metadata:
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/ecr-operator-serving-cert
-  name: ecr-operator-validating-webhook-configuration
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{- include "kube-ecr-secrets-operator.name" . }}-serving-cert
+  name: {{ include "kube-ecr-secrets-operator.name" . }}-mutating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
   - v1
   - v1beta1
   clientConfig:
     service:
-      name: ecr-operator-webhook-service
+      name: {{ include "kube-ecr-secrets-operator.name" . }}-webhook-service
       namespace: {{ .Release.Namespace }}
-      path: /validate-awsecrcredential
+      path: /validate-mutate-awsecrcredential
   failurePolicy: Fail
-  name: ecrcredential.aws.zakariaamine.com
+  name: ecrcredential.zakariaamine.com
+  objectSelector:
+    matchExpressions:
+    - key: control-plane
+      operator: NotIn
+      values:
+      - controller-manager
   rules:
   - apiGroups:
     - aws.zakariaamine.com
@@ -25,4 +32,6 @@ webhooks:
     - UPDATE
     resources:
     - awsecrcredentials
-  sideEffects: None
+  sideEffects: NoneOnDryRun
+
+

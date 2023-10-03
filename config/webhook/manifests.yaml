@@ -12,57 +12,9 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-v1-pod
+      path: /validate-mutate-awsecrcredential
   failurePolicy: Fail
-  name: awsecrcredential.zakariaamine.com
-  rules:
-  - apiGroups:
-    - ""
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - pods
-  sideEffects: NoneOnDryRun
-- admissionReviewVersions:
-  - v1
-  - v1beta1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /validate-secret-delete
-  failurePolicy: Fail
-  name: secret.aws.zakariaamine.com
-  rules:
-  - apiGroups:
-    - ""
-    apiVersions:
-    - v1
-    operations:
-    - DELETE
-    resources:
-    - secrets
-  sideEffects: NoneOnDryRun
----
-apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
-metadata:
-  creationTimestamp: null
-  name: validating-webhook-configuration
-webhooks:
-- admissionReviewVersions:
-  - v1
-  - v1beta1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /validate-awsecrcredential
-  failurePolicy: Fail
-  name: ecrcredential.aws.zakariaamine.com
+  name: ecrcredential.zakariaamine.com
   rules:
   - apiGroups:
     - aws.zakariaamine.com
@@ -73,4 +25,4 @@ webhooks:
     - UPDATE
     resources:
     - awsecrcredentials
-  sideEffects: None
+  sideEffects: NoneOnDryRun

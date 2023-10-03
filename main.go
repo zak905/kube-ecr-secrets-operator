@@ -22,6 +22,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"go.uber.org/zap/zapcore"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -61,6 +62,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	opts := zap.Options{
 		Development: true,
+		Encoder:     zapcore.NewJSONEncoder(zapcore.EncoderConfig{}),
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
@@ -98,17 +100,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	mgr.GetWebhookServer().Register("/mutate-v1-pod",
-		&webhook.Admission{
-			Handler: &controllers.DockerCredentialsReferesher{Client: mgr.GetClient(), Decoder: admission.NewDecoder(mgr.GetScheme())},
-		},
-	)
-	mgr.GetWebhookServer().Register("/validate-secret-delete",
-		&webhook.Admission{
-			Handler: &controllers.SecretsWatcher{Client: mgr.GetClient(), Decoder: admission.NewDecoder(scheme)},
-		},
-	)
-	mgr.GetWebhookServer().Register("/validate-awsecrcredential",
+	mgr.GetWebhookServer().Register("/validate-mutate-awsecrcredential",
 		&webhook.Admission{
 			Handler: &controllers.AWSECRCredentialValidator{Client: mgr.GetClient(), Decoder: admission.NewDecoder(mgr.GetScheme())},
 		},

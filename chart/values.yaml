@@ -1,5 +1,9 @@
 podAnnotations: {}
 
+image:
+  repository: ghcr.io/zak905/kube-ecr-secrets-operator/controller-manager
+  tag: latest
+
 resources:
   limits:
     cpu: 500m
@@ -16,3 +20,4 @@ affinity: {}
 
 service:
   port: 443
+  targetPort: 9443
