@@ -59,14 +59,15 @@ type AWSECRCredentialStatus struct {
 	// +patchStrategy=merge
 	// +patchMergeKey=type
 	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:resource:scope=Cluster
 //+kubebuilder:subresource:status
 
-// AWSECRCredential is the Schema for the awsecrcredentials API. It manages several docker secrets for AWS ECR across different namespaces.
+// AWSECRCredential is the Schema for the awsecrcredentials API.
+// It manages several docker secrets for AWS ECR across different namespaces.
 type AWSECRCredential struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

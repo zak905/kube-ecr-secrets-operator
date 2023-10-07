@@ -33,6 +33,7 @@ import (
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -55,7 +56,8 @@ const (
 // AWSECRCredentialReconciler reconciles a AWSECRCredential object
 type AWSECRCredentialReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 const expiryAnnotation = "expiry"
@@ -76,6 +78,7 @@ type DockerAuthConfig struct {
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=list;watch
+//+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -101,6 +104,7 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	dockerConfig, expiresAt, err := getDockerJSONConfigFromAWS(ctx, awsECRCredentials.Spec.AWSAccess)
 	if err != nil {
+		r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "GetAWSAuthTokenFailed", err.Error())
 		return result, fmt.Errorf("unable to create docker secret: %w", err)
 	}
 
@@ -111,11 +115,12 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		Reason:             SecretsProcessingReason,
 		Message:            fmt.Sprintf(SecretsProcessingMessageTemplate, awsECRCredentials.Spec.Namespaces),
 	}); err != nil {
+		r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 		return result, err
 	}
 
 	for _, namespace := range awsECRCredentials.Spec.Namespaces {
-		log.Info("processing", "namespace", namespace)
+		log.Info("", "namespace", namespace, "message", "processing")
 		existingDockerSecret := &v1.Secret{}
 		if err := r.Client.Get(ctx,
 			client.ObjectKey{
@@ -132,14 +137,17 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 					Reason:             SecretsProcessingReason,
 					Message:            wrappedErr.Error(),
 				}); err != nil {
+					r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 					return result, err
 				}
+
+				r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "GetSecretError", err.Error())
 				return result, wrappedErr
 			}
 
-			log.Info("creating secret", "namespace", namespace)
+			log.Info("", "namespace", namespace, "message", "creating secret")
 
-			dockerSecret := newDockerSecret(ctx, awsECRCredentials, dockerConfig, expiresAt)
+			dockerSecret := newDockerSecret(awsECRCredentials, dockerConfig, expiresAt)
 			dockerSecret.Namespace = namespace
 			if err := r.Client.Create(ctx, dockerSecret); err != nil {
 				wrappedErr := fmt.Errorf("error creating docker secret in namespace %s, %w", namespace, err)
@@ -150,12 +158,16 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 					Reason:             SecretsProcessingReason,
 					Message:            wrappedErr.Error(),
 				}); err != nil {
+					r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 					return result, err
 				}
+
+				r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "CreateSecretError", err.Error())
 				return result, wrappedErr
 			}
 
-			log.Info("creating secret", "namespace", namespace)
+			r.Recorder.Eventf(awsECRCredentials, v1.EventTypeNormal, "SecretCreationSuccess", "secret %s created successfully in namespace %s",
+				awsECRCredentials.Spec.SecretName, namespace)
 		} else {
 			existingDockerSecret.Data[".dockerconfigjson"] = dockerConfig
 			existingDockerSecret.Annotations[expiryAnnotation] = expiresAt.Format(time.RFC3339)
@@ -168,10 +180,16 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 					Reason:             SecretsProcessingReason,
 					Message:            wrappedErr.Error(),
 				}); err != nil {
+					r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 					return result, err
 				}
+
+				r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "UpdateSecretError", err.Error())
 				return result, wrappedErr
 			}
+
+			r.Recorder.Eventf(awsECRCredentials, v1.EventTypeNormal, "SecretUpdateSuccess", "secret %s updated successfully in namespace %s",
+				awsECRCredentials.Spec.SecretName, namespace)
 		}
 	}
 
@@ -182,6 +200,7 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		Reason:             SecretsUpdatedReason,
 		Message:            fmt.Sprintf(SecretsUpdatedMessageTemplate, awsECRCredentials.Spec.Namespaces, expiresAt.String()),
 	}); err != nil {
+		r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 		return result, err
 	}
 
@@ -264,7 +283,7 @@ func getAWSECRAuthToken(ctx context.Context, accessKeyID, secretAccessKey, regio
 
 // Creates the Kubernetes secret
 // the created secret has the namespace not set
-func newDockerSecret(ctx context.Context, ecrCredential *awsv1alpha1.AWSECRCredential,
+func newDockerSecret(ecrCredential *awsv1alpha1.AWSECRCredential,
 	dockerConfig []byte, expiresAt *time.Time) *v1.Secret {
 	return &v1.Secret{
 		Type: v1.SecretTypeDockerConfigJson,

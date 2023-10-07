@@ -1,3 +1,33 @@
+## kube-ecr-secrets-operator:
+
+![diagram](diagram.png)
+
+Kubernetes Operator for managing AWS ECR (Elastic Container Registry) secrets cluster wide. ECR docker credentials expire every 12 hours, and need to be refreshed whenever you need to deploy. This operator's goal is to help manage the ECR image pull secrets by refreshing them periodically. It introduces the `AWSECRCredentials` cluster scoped object that:
+
+1. creates a docker credential secret in all the specified namespaces upon creation
+2. Once the secrets are created, the operator takes care of refreshing them periodically (every 12h)
+
+Here is an example of the `AWSECRCredentials` specification:
+
+```
+apiVersion: aws.zakariaamine.com/v1alpha1
+kind: AWSECRCredential
+metadata:
+  name: my-ecr-credentials
+spec:
+  awsAccess:
+    # base64 is applied when the object is submitted (exactly like K8 secrets)
+    accessKeyId: YOUR_ACCESS_KEY_ID
+    secretAccessKey: YOUR_SECRET_ACCESS_KEY
+    region: THE_ECR_REGION
+  secretName: ecr-login
+  namespaces:
+    - ns1
+    - ns2
+    - ns3
+    - ns4
+```
+
 ## Installation and Usage:
 
 The operator expects [cert-manager](https://github.com/cert-manager/cert-manager) to be present in the cluster, since it makes use of `Issuer` and `Certificate` kinds. Because there are some gotchas related to having cert-manager as a subchart(See this [issue](https://github.com/cert-manager/cert-manager/issues/3246) and this [issue](https://github.com/cert-manager/cert-manager/issues/3116) for more details ), kube-ecr-secrets-operator leaves the responsibility to the chart consumer to install it. Installation instructions can be found in the official [docs](https://cert-manager.io/docs/installation/helm/)
@@ -9,49 +39,19 @@ helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator/ch
 
 helm repo update 
 
-helm install kube-ecr-secrets-operator zakariaamine/kube-ecr-secrets-operator
+helm install --create-namespace kube-ecr-secrets-operator zakariaamine/kube-ecr-secrets-operator -n kube-ecr-secrets-operator-system
 
 ```
 
 Once the chart is installed, `AWSECRCredentials` objects can be created.
 
-Before any `AWSECRCredentials` can be created, the secret refered to by `awsAccess` property needs to be present with following keys: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_REGION`. For example:
-
-```
-apiVersion: v1
-data:
-  AWS_ACCESS_KEY_ID: ACCESSKEYID
-  AWS_SECRET_ACCESS_KEY: secretaccesskey
-  AWS_REGION: us-east-1
-kind: Secret
-metadata:
-  name: aws-access
-```
-
 It is, off course, highly recommended to limit the permissions of the IAM user represented by the credentials to ECR only.
 
-Afterwards, you can create `AWSECRCredentials`. The update of the ECR credentials will be handled automatically whenver a pod is created/updated.
+## CRDs:
 
-```
-apiVersion: aws.zakariaamine.com/v1alpha1
-kind: AWSECRCredential
-metadata:
-  name: my-ecr-credentials
-spec:
-  awsAccess:
-    #secret containing AWS access used to get the ECR secret from AWS
-    secretName: aws-access
-    #optional namespace of the aws-access secret. Defaults to default.
-    namespace: default
-  #the name of the K8 secret that will be created
-  secretName: ecr-login
-  #all the namespaces in which the operator will create and manage ecr secrets
-  namespaces:
-    - ns1
-    - ns2
-    - ns3
-    - ns4
-```
+The `AWSECRCredentials` CRD definition is installed with the helm chart using the crds folder. However, a known shortcoming of using helm to install CRDs is the inability to update the CRDs (if there is a change) on subsequent chart upgrades. To overcome the shortcoming, one of the following solutions can help:
+* The chart can be uninstalled and installed when there is a new release with a CRD change.
+* The CRDs can be installed using `kubectl` as a first step `kubectl apply -f https://raw.githubusercontent.com/zak905/kube-ecr-secrets-operator/master/chart/crds/AWSECRCredentials.yaml`, and then the chart can be installed with the `--skip-crds` flag.
 
 ## Parameters:
 
