@@ -83,8 +83,9 @@ func main() {
 	}
 
 	if err = (&controllers.AWSECRCredentialReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("aws-ecr-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSECRCredential")
 		os.Exit(1)
@@ -102,7 +103,10 @@ func main() {
 
 	mgr.GetWebhookServer().Register("/validate-mutate-awsecrcredential",
 		&webhook.Admission{
-			Handler: &controllers.AWSECRCredentialValidator{Client: mgr.GetClient(), Decoder: admission.NewDecoder(mgr.GetScheme())},
+			Handler: &controllers.AWSECRCredentialValidator{
+				Client:  mgr.GetClient(),
+				Decoder: admission.NewDecoder(mgr.GetScheme()),
+			},
 		},
 	)
 
