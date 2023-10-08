@@ -24,7 +24,7 @@ spec:
       containers:
       - command:
         - /manager
-        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        image: {{ .Values.image.repository }}:{{ default .Chart.Version .Values.image.tag}}
         livenessProbe:
           httpGet:
             path: /healthz
