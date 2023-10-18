@@ -62,11 +62,6 @@ In case an unexpected behavior is observed, the first step for troubleshooting i
   status:
     conditions:
     - lastTransitionTime: "2023-10-04T20:45:52Z"
-      message: 'creating/updating secrets in namespaces: [ns1]'
-      reason: SecretsProcessing
-      status: "True"
-      type: Progress
-    - lastTransitionTime: "2023-10-04T20:45:52Z"
       message: 'AWS ECR secret with type kubernetes.io/dockerconfigjson have been
         created/updated successfully in namespaces: [ns1] next update at: 2023-10-05
         08:45:52.269 +0000 UTC'
