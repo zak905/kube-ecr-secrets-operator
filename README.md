@@ -36,7 +36,7 @@ The operator expects [cert-manager](https://github.com/cert-manager/cert-manager
 The operator can be installed using helm:
 
 ```
-helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator/chart
+helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator/helm-repo
 
 helm repo update 
 
@@ -90,5 +90,4 @@ The logs of the contoller pod can also help: `kubectl logs -l app.kubernetes.io/
 
 * attempt to remove the dependency on `cert-manager`. Since TLS is only for internal usage, and a self signed certificate is enough, a certificate can be manually created by the operator or by a job when the chart is installed. The certificate can have an expiry date very far ahead in the future so that it does not need to be renewed. 
 * making `AWSECRCredentials` manage registries for several AWS regions
-* add static Kubernetes manifests for users who do not want to use helm
 * Adding CI/CD, e2e testing
