@@ -1,7 +1,5 @@
 ## kube-ecr-secrets-operator:
 
-![diagram](diagram.png)
-
 Kubernetes Operator for managing AWS ECR (Elastic Container Registry) secrets cluster wide. ECR docker credentials expire every 12 hours, and need to be refreshed whenever you need to deploy. This operator's goal is to help manage the ECR image pull secrets by refreshing them periodically. It introduces the `AWSECRCredentials` cluster scoped object that:
 
 1. creates a docker credential secret in all the specified namespaces upon creation
