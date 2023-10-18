@@ -34,7 +34,6 @@ import (
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -59,7 +58,6 @@ const (
 // AWSECRCredentialReconciler reconciles a AWSECRCredential object
 type AWSECRCredentialReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 }
 
