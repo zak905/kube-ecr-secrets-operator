@@ -2,7 +2,32 @@
 
 ## kube-ecr-secrets-operator:
 
-![diagram](diagram.png)
+
+```mermaid
+flowchart TB
+    subgraph ns1 ["<br><br><br>
+    namespace 1"]
+    a1("fa:fa-key ECR secret
+     kubernetes.io/dockerconfigjson
+    ")
+    end
+    subgraph ns2 ["<br><br><br>
+    namespace 2"]
+    b1("fa:fa-key ECR secret
+     kubernetes.io/dockerconfigjson
+    ")
+    end
+    subgraph ns3 ["<br><br><br>
+namespace 3"]
+    c1("fa:fa-key ECR secret 
+     kubernetes.io/dockerconfigjson
+    ")
+    end
+    operator("fa:fa-wrench kube-ecr-secrets-operator")
+    operator --> |"fa:fa-rotate-right rotate every 12h"|a1
+    operator --> |"fa:fa-rotate-right rotate every 12h"|b1
+    operator --> |"fa:fa-rotate-right rotate every 12h"|c1
+```
 
 Kubernetes Operator for managing AWS ECR (Elastic Container Registry) secrets cluster wide. ECR docker credentials expire every 12 hours, and need to be refreshed whenever you need to deploy. This operator's goal is to help manage the ECR image pull secrets by refreshing them periodically. It introduces the `AWSECRCredentials` cluster scoped object that:
 
