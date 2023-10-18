@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 
@@ -31,12 +32,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	v1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	awsv1alpha1 "github.com/zak905/kube-ecr-secrets-operator/api/v1alpha1"
 )
@@ -45,8 +49,7 @@ const (
 	SecretsProcessingReason = "SecretsProcessing"
 	SecretsUpdatedReason    = "SecretsUpdated"
 
-	ReadyCondition    = "Ready"
-	ProgressCondition = "Progress"
+	ReadyCondition = "Ready"
 
 	SecretsUpdatedMessageTemplate = "AWS ECR secret with type kubernetes.io/dockerconfigjson have been created/updated successfully in namespaces: %s" +
 		" next update at: %s"
@@ -70,6 +73,19 @@ type DockerServerAuthInfo struct {
 
 type DockerAuthConfig struct {
 	Auths map[string]DockerServerAuthInfo `json:"auths"`
+}
+
+// StatusChangePredicate implements a default update predicate function on status change.
+// This predicate will skip update events that have a change in the object's status.
+type StatusChangePredicate struct {
+	predicate.Funcs
+}
+
+func (StatusChangePredicate) Update(e event.UpdateEvent) bool {
+	old := e.ObjectOld.(*awsv1alpha1.AWSECRCredential)
+	new := e.ObjectNew.(*awsv1alpha1.AWSECRCredential)
+
+	return reflect.DeepEqual(old.Status, new.Status)
 }
 
 //+kubebuilder:rbac:groups=aws.zakariaamine.com,resources=awsecrcredentials,verbs=get;list;watch;create;update;patch;delete
@@ -109,11 +125,10 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
-		LastTransitionTime: metav1.Now(),
-		Status:             metav1.ConditionTrue,
-		Type:               ProgressCondition,
-		Reason:             SecretsProcessingReason,
-		Message:            fmt.Sprintf(SecretsProcessingMessageTemplate, awsECRCredentials.Spec.Namespaces),
+		Status:  metav1.ConditionFalse,
+		Type:    ReadyCondition,
+		Reason:  SecretsProcessingReason,
+		Message: fmt.Sprintf(SecretsProcessingMessageTemplate, awsECRCredentials.Spec.Namespaces),
 	}); err != nil {
 		r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 		return result, err
@@ -131,11 +146,10 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if !apiErrors.IsNotFound(err) {
 				wrappedErr := fmt.Errorf("got %s status from API server: %w", apiErrors.ReasonForError(err), err)
 				if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
-					LastTransitionTime: metav1.Now(),
-					Status:             metav1.ConditionFalse,
-					Type:               ProgressCondition,
-					Reason:             SecretsProcessingReason,
-					Message:            wrappedErr.Error(),
+					Status:  metav1.ConditionFalse,
+					Type:    ReadyCondition,
+					Reason:  SecretsProcessingReason,
+					Message: wrappedErr.Error(),
 				}); err != nil {
 					r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 					return result, err
@@ -152,11 +166,10 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if err := r.Client.Create(ctx, dockerSecret); err != nil {
 				wrappedErr := fmt.Errorf("error creating docker secret in namespace %s, %w", namespace, err)
 				if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
-					LastTransitionTime: metav1.Now(),
-					Status:             metav1.ConditionFalse,
-					Type:               ProgressCondition,
-					Reason:             SecretsProcessingReason,
-					Message:            wrappedErr.Error(),
+					Status:  metav1.ConditionFalse,
+					Type:    ReadyCondition,
+					Reason:  SecretsProcessingReason,
+					Message: wrappedErr.Error(),
 				}); err != nil {
 					r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 					return result, err
@@ -174,11 +187,10 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if err := r.Client.Update(ctx, existingDockerSecret); err != nil {
 				wrappedErr := fmt.Errorf("error update docker secret in namespace %s, %w", namespace, err)
 				if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
-					LastTransitionTime: metav1.Now(),
-					Status:             metav1.ConditionFalse,
-					Type:               ProgressCondition,
-					Reason:             SecretsProcessingReason,
-					Message:            wrappedErr.Error(),
+					Status:  metav1.ConditionFalse,
+					Type:    ReadyCondition,
+					Reason:  SecretsProcessingReason,
+					Message: wrappedErr.Error(),
 				}); err != nil {
 					r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 					return result, err
@@ -194,11 +206,10 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if err := r.setStatus(ctx, awsECRCredentials, metav1.Condition{
-		LastTransitionTime: metav1.Now(),
-		Status:             metav1.ConditionTrue,
-		Type:               ReadyCondition,
-		Reason:             SecretsUpdatedReason,
-		Message:            fmt.Sprintf(SecretsUpdatedMessageTemplate, awsECRCredentials.Spec.Namespaces, expiresAt.String()),
+		Status:  metav1.ConditionTrue,
+		Type:    ReadyCondition,
+		Reason:  SecretsUpdatedReason,
+		Message: fmt.Sprintf(SecretsUpdatedMessageTemplate, awsECRCredentials.Spec.Namespaces, expiresAt.String()),
 	}); err != nil {
 		r.Recorder.Event(awsECRCredentials, v1.EventTypeWarning, "StatusUpdateFailed", err.Error())
 		return result, err
@@ -213,13 +224,16 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (r *AWSECRCredentialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&awsv1alpha1.AWSECRCredential{}).
+		WithEventFilter(StatusChangePredicate{}).
 		Complete(r)
 }
 
 func (r *AWSECRCredentialReconciler) setStatus(ctx context.Context, credential *awsv1alpha1.AWSECRCredential, condition metav1.Condition) error {
-	credential.Status.Conditions = setStatusCondition(credential.Status.Conditions, condition)
+	oldObj := credential.DeepCopy()
 
-	if err := r.Client.Status().Update(ctx, credential); err != nil {
+	meta.SetStatusCondition(&credential.Status.Conditions, condition)
+
+	if err := r.Client.Status().Patch(ctx, credential, client.MergeFrom(oldObj)); err != nil {
 		return fmt.Errorf("failed updating AWSECRCredential status: %w", err)
 	}
 
@@ -303,21 +317,4 @@ func newDockerSecret(ecrCredential *awsv1alpha1.AWSECRCredential,
 		},
 		Data: map[string][]byte{".dockerconfigjson": dockerConfig},
 	}
-}
-
-func setStatusCondition(conditions []metav1.Condition, searchedCondition metav1.Condition) []metav1.Condition {
-	var found bool
-	for _, condition := range conditions {
-		if condition.Reason == searchedCondition.Reason {
-			condition = searchedCondition
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		conditions = append(conditions, searchedCondition)
-	}
-
-	return conditions
 }
