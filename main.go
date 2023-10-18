@@ -84,7 +84,6 @@ func main() {
 
 	if err = (&controllers.AWSECRCredentialReconciler{
 		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor("aws-ecr-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSECRCredential")
