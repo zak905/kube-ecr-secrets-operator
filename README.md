@@ -61,6 +61,7 @@ The operator expects [cert-manager](https://github.com/cert-manager/cert-manager
 The operator can be installed using helm:
 
 ```
+#adding the repo
 helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator/helm-repo
 
 helm repo update 
@@ -105,9 +106,12 @@ The logs of the contoller pod can also help: `kubectl logs -l app.kubernetes.io/
 
 * Depends on [cert-manager](https://github.com/cert-manager/cert-manager) (for now)
 * An `AWSECRCredentials` object can manage only a single AWS region, which means that if you have multiple registries in different regions, you need to create an `AWSECRCredentials` for each.
+
+## Running Tests:
+
+To run tests, the following environment variables need to set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` in the terminal from which the tests are run. Afterwards, the tests can be run using: `make test`
   
 ## Future improvements ideas
 
 * attempt to remove the dependency on `cert-manager`. Since TLS is only for internal usage, and a self signed certificate is enough, a certificate can be manually created by the operator or by a job when the chart is installed. The certificate can have an expiry date very far ahead in the future so that it does not need to be renewed. 
 * making `AWSECRCredentials` manage registries for several AWS regions
-* Adding CI/CD, e2e testing
