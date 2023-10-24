@@ -59,8 +59,7 @@ The operator expects [cert-manager](https://github.com/cert-manager/cert-manager
 The operator can be installed using helm:
 
 ```
-#adding the repo
-helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator/helm-repo
+helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator/repo-helm
 
 helm repo update 
 
