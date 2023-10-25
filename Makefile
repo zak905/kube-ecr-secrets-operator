@@ -118,6 +118,12 @@ envtest: ## Download envtest-setup locally if necessary.
 lint:
 	@golangci-lint run -v
 
+package-chart:
+	helm package chart/ -d ./repo-helm/
+	helm repo index repo-helm/ --merge repo-helm/index.yaml --url https://zak905.github.io/kube-ecr-secrets-operator/repo-helm
+
+
+
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 define go-get-tool
