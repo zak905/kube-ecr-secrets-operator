@@ -5,6 +5,7 @@ image:
   #defaults to chart version if not set
   tag: ""
 
+#resources
 resources:
   limits:
     cpu: 500m
