@@ -25,6 +25,7 @@ spec:
       - command:
         - /manager
         image: {{ .Values.image.repository }}:{{ default .Chart.Version .Values.image.tag}}
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /healthz
