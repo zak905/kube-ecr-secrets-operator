@@ -181,6 +181,9 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				awsECRCredentials.Spec.SecretName, namespace)
 		} else {
 			existingDockerSecret.Data[".dockerconfigjson"] = dockerConfig
+			if existingDockerSecret.Annotations == nil {
+				existingDockerSecret.Annotations = map[string]string{}
+			}
 			existingDockerSecret.Annotations[expiryAnnotation] = expiresAt.Format(time.RFC3339)
 			if err := r.Client.Update(ctx, existingDockerSecret); err != nil {
 				wrappedErr := fmt.Errorf("error update docker secret in namespace %s, %w", namespace, err)
