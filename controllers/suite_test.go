@@ -52,9 +52,9 @@ var cancelFunc context.CancelFunc
 var testConfig = &TestConfig{}
 
 type TestConfig struct {
-	AWSAccessKeyID     string `env:"AWS_ACCESS_KEY_ID"`
-	AWSSecretAccessKey string `env:"AWS_SECRET_ACCESS_KEY"`
-	AWSRegion          string `env:"AWS_REGION"`
+	AWSAccessKeyID     string `env:"AWS_ACCESS_KEY_ID,required"`
+	AWSSecretAccessKey string `env:"AWS_SECRET_ACCESS_KEY,required"`
+	AWSRegion          string `env:"AWS_REGION,required"`
 }
 
 func TestAPIs(t *testing.T) {
