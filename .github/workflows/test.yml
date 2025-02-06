@@ -1,7 +1,8 @@
+name: unit test
 on:
     pull_request:
       types: [opened, synchronize, reopened]
-      
+
 jobs:
     test:
         runs-on: ubuntu-latest
