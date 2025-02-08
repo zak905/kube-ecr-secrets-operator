@@ -17,7 +17,7 @@ import (
 
 type AWSECRCredentialValidator struct {
 	Client  client.Client
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 //+kubebuilder:webhook:path=/validate-mutate-awsecrcredential,mutating=true,admissionReviewVersions=v1;v1beta1,failurePolicy=fail,groups=aws.zakariaamine.com,resources=awsecrcredentials,verbs=create;update,versions=v1alpha1,name=ecrcredential.zakariaamine.com,sideEffects=NoneOnDryRun
