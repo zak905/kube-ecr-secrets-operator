@@ -46,13 +46,6 @@ jobs:
               AWS_REGION: ${{ secrets.AWS_REGION }}
           run: |
             cat hack/test-manifest.yaml | envsubst | kubectl apply -f -
-        - name: create a AWSECRCredential CR
-          env:
-              AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-              AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-              AWS_REGION: ${{ secrets.AWS_REGION }}
-          run: |
-            cat hack/test-manifest.yaml | envsubst | kubectl apply -f -
         - name: checks
           env:
               TEST_POD_IMAGE: ${{ secrets.TEST_POD_IMAGE }}
@@ -64,9 +57,9 @@ jobs:
             cat hack/test-pod.yaml | envsubst | kubectl apply -n ns1 -f -
             cat hack/test-pod.yaml | envsubst | kubectl apply -n ns2 -f -
             cat hack/test-pod.yaml | envsubst | kubectl apply -n ns3 -f -
-            kubectl wait --timeout=30s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns1
-            kubectl wait --timeout=30s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns2
-            kubectl wait --timeout=30s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns3
+            kubectl wait --timeout=60s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns1
+            kubectl wait --timeout=60s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns2
+            kubectl wait --timeout=60s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns3
             
 
         

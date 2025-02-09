@@ -6,3 +6,5 @@ spec:
   containers:
   - name: test-pod
     image: ${TEST_POD_IMAGE}
+  imagePullSecrets:
+  - name: ecr-login
