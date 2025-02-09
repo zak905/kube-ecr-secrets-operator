@@ -108,7 +108,11 @@ The logs of the contoller pod can also help: `kubectl logs -l app.kubernetes.io/
 
 ## Running Tests:
 
-To run tests, the following environment variables need to set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` in the terminal from which the tests are run. Afterwards, the tests can be run using: `make test`
+To run tests, the following environment variables need to set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` in the terminal from which the tests are run. Afterwards, the tests can be run using: `make unit-test`
+
+## Kubernetes version compatibility:
+
+The operator is tested against the latest three (minor) Kubernetes versions. 
   
 ## Future improvements ideas
 

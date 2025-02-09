@@ -2,24 +2,18 @@ name: e2e tests
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-
-
-
+    
 jobs:
-    test:
+    e2e-test:
       runs-on: ubuntu-latest
       strategy:
         matrix:
-          #each kind image supports a K8 version
-          #v0.26.0 supports K8 v1.32.0
-          #v0.25.0 supports K8 v1.31.0
-          #v0.23.0 supports K8 v1.30.0
-          kind_version: ["v0.23.0", "v0.25.0", "v0.26.0"]
+          kubernetes_version: ["v1.32.0", "v1.31.0", "v1.30.0"]
       steps:
         - name: Create k8s Kind Cluster
           uses: helm/kind-action@v1
           with:
-            version: ${{ matrix.kind_version }}
+            node_image: kindest/node:${{ matrix.kubernetes_version }}
         - uses: azure/setup-helm@v4.2.0
         - uses: actions/checkout@v4
         - name: install cert-manager chart
