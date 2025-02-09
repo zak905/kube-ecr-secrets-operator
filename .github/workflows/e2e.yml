@@ -1,0 +1,62 @@
+name: e2e tests
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+
+
+jobs:
+    test:
+      runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          #each kind image supports a K8 version
+          kind_version: ["v0.23.0", "v0.25.0", "v0.26.0"]
+      steps:
+        - name: Create k8s Kind Cluster
+          uses: helm/kind-action@v1
+          with:
+            node_image: ${{ matrix.kind_version }}
+        - uses: azure/setup-helm@v4.2.0
+        - uses: actions/checkout@v4
+        - name: install kube-ecr-secrets-operator chart
+          run: |
+            helm install kube-ecr-secrets-operator chart
+        - name: create kubernetes namespace
+          run: |
+            kubectl create namespace ns1
+            kubectl create namespace ns2
+            kubectl create namesapce ns3
+        - name: create a AWSECRCredential CR
+          env:
+              AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+              AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+              AWS_REGION: ${{ secrets.AWS_REGION }}
+          run: |
+            cat hack/test-manifest.yaml | envsubst | kubectl apply -
+        - name: create a AWSECRCredential CR
+          env:
+              AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+              AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+              AWS_REGION: ${{ secrets.AWS_REGION }}
+          run: |
+            cat hack/test-manifest.yaml | envsubst | kubectl apply -
+        - name: checks
+          env:
+              TEST_POD_IMAGE: ${{ secrets.TEST_POD_IMAGE }}
+          run: |
+            kubectl wait --timeout=10s --for=condition=Ready=True awsecrcredential/test-ecr-credentials
+            kubectl get secret ecr-login -n ns1
+            kubectl get secret ecr-login -n ns2
+            kubectl get secret ecr-login -n ns3
+            cat hack/test-pod.yaml | envsubst | kubectl apply -n ns1 -
+            cat hack/test-pod.yaml | envsubst | kubectl apply -n ns2 -
+            cat hack/test-pod.yaml | envsubst | kubectl apply -n ns3 -
+            kubectl wait --timeout=30s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns1
+            kubectl wait --timeout=30s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns2
+            kubectl wait --timeout=30s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns3
+            
+
+        
+        
+            
