@@ -22,6 +22,14 @@ jobs:
             version: ${{ matrix.kind_version }}
         - uses: azure/setup-helm@v4.2.0
         - uses: actions/checkout@v4
+        - name: install cert-manager chart
+          run: |
+            helm repo add jetstack https://charts.jetstack.io --force-update
+            helm install \
+            cert-manager jetstack/cert-manager \
+            --namespace cert-manager \
+            --create-namespace \
+            --set crds.enabled=true
         - name: install kube-ecr-secrets-operator chart
           run: |
             helm install kube-ecr-secrets-operator chart
