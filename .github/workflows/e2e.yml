@@ -37,7 +37,7 @@ jobs:
           run: |
             kubectl create namespace ns1
             kubectl create namespace ns2
-            kubectl create namesapce ns3
+            kubectl create namespace ns3
         - name: create a AWSECRCredential CR
           env:
               AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
