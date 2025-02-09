@@ -33,6 +33,7 @@ jobs:
         - name: install kube-ecr-secrets-operator chart
           run: |
             helm install kube-ecr-secrets-operator chart
+            kubectl wait --timeout=30s --for=jsonpath='{.status.readyReplicas}'=1 deployment/kube-ecr-secrets-operator-controller-manager
         - name: create kubernetes namespace
           run: |
             kubectl create namespace ns1
