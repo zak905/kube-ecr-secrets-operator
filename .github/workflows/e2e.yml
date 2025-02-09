@@ -11,12 +11,15 @@ jobs:
       strategy:
         matrix:
           #each kind image supports a K8 version
+          #v0.26.0 supports K8 v1.32.0
+          #v0.25.0 supports K8 v1.31.0
+          #v0.23.0 supports K8 v1.30.0
           kind_version: ["v0.23.0", "v0.25.0", "v0.26.0"]
       steps:
         - name: Create k8s Kind Cluster
           uses: helm/kind-action@v1
           with:
-            node_image: ${{ matrix.kind_version }}
+            node_image: kindest/node:${{ matrix.kind_version }}
         - uses: azure/setup-helm@v4.2.0
         - uses: actions/checkout@v4
         - name: install kube-ecr-secrets-operator chart
