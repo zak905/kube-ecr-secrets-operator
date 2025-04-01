@@ -1,6 +1,7 @@
 module github.com/zak905/kube-ecr-secrets-operator
 
 go 1.23.6
+toolchain go1.24.1
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.6
@@ -10,8 +11,8 @@ require (
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	go.uber.org/zap v1.27.0
-	k8s.io/api v0.32.1
-	k8s.io/apimachinery v0.32.1
+	k8s.io/api v0.32.3
+	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.1
 	sigs.k8s.io/controller-runtime v0.20.1
 )
