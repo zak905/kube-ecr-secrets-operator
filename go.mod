@@ -1,6 +1,7 @@
 module github.com/zak905/kube-ecr-secrets-operator
 
 go 1.23.6
+
 toolchain go1.24.1
 
 require (
@@ -14,7 +15,7 @@ require (
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.1
-	sigs.k8s.io/controller-runtime v0.20.1
+	sigs.k8s.io/controller-runtime v0.20.4
 )
 
 require (
