@@ -1,12 +1,13 @@
 module github.com/zak905/kube-ecr-secrets-operator
 
 go 1.23.6
+
 toolchain go1.24.1
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.6
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.65
-	github.com/aws/aws-sdk-go-v2/service/ecr v1.41.0
+	github.com/aws/aws-sdk-go-v2/service/ecr v1.43.3
 	github.com/caarlos0/env/v9 v9.0.0
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
