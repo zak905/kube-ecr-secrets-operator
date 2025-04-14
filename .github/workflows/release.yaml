@@ -1,0 +1,26 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-version:
+        type: string
+        required: true
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-go@v5
+              with:
+                go-version-file: 'go.mod'
+            - name: build and push docker image
+              run: docker build --push . -t ghcr.io/zak905/kube-ecr-secrets-operator/controller-manager:${{ inputs.release-version}}
+            - uses: ncipollo/release-action@v1
+              with:
+                generateReleaseNotes: true
+                makeLatest: true
+                tag: ${{ inputs.release-version }}
+            
+            

@@ -1,0 +1,57 @@
+name: deploy helm chart
+on:
+    workflow_dispatch:
+        inputs:
+            appVersion: 
+                type: string
+                required: true
+jobs:
+    deploy:
+        name: deploy helm chart
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out code
+              uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+            - name: Install helm chart
+              uses: azure/setup-helm@v4.3.0
+            - name: get chart version
+              id: get-chart-version
+              run: |
+                echo "chart_version=$(grep "version:" chart/Chart.yaml | sed 's\version: \\')" >> "$GITHUB_OUTPUT"
+            - name: Package helm chart
+              run: |
+                helm package chart/ --app-version ${{ inputs.appVersion }}
+            - name: Create Release
+              uses: ncipollo/release-action@v1
+              with:
+                tag: chart-${{ steps.get-chart-version.outputs.chart_version }}
+                name: chart-${{ steps.get-chart-version.outputs.chart_version }}
+                body: | 
+                    Helm chart version ${{ steps.get-chart-version.outputs.chart_version }} 
+                token: ${{ github.token }}
+                prerelease: false
+                makeLatest: false
+                allowUpdates: true
+                artifacts: >
+                  *.tgz
+            - name: switch to helm repo branch and create/update index.yaml
+              run: |
+                git checkout helm-repo
+                cd helm-repo
+                helm repo index . \
+                --url https://github.com/zak905/kube-ecr-secrets/releases/download/chart-${{ steps.get-chart-version.outputs.latest-tag }}/
+
+                git config user.email "robot905@g-widgets.com";
+                git config user.name "robot905";
+                git add index.yaml
+                git commit -m "chart ${{ steps.get-chart-version.outputs.chart_version }} release: update helm repository index"
+                git push origin helm-repo
+    
+
+            
+
+            
+
+            
