@@ -74,36 +74,6 @@ var _ = BeforeSuite(func() {
 		ErrorIfCRDPathMissing: true,
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
 			Paths: []string{filepath.Join("..", "hack", "unit-test")},
-			/* 	MutatingWebhooks: []*admissionv1.MutatingWebhookConfiguration{
-					{
-						ObjectMeta: v1.ObjectMeta{
-							Name: "ecr-validation-test-webhook",
-						},
-						Webhooks: []admissionv1.MutatingWebhook{
-							{
-								AdmissionReviewVersions: []string{"v1", "v1beta1"},
-								ClientConfig:            admissionv1.WebhookClientConfig{},
-								FailurePolicy:           ptr(admissionv1.Fail),
-								Name:                    "ecrcredential.zakariaamine.com",
-								Rules: []admissionv1.RuleWithOperations{
-									{
-										Rule: admissionv1.Rule{
-											APIGroups:   []string{"aws.zakariaamine.com"},
-											APIVersions: []string{"v1alpha1"},
-											Resources:   []string{"awsecrcredentials"},
-										},
-										Operations: []admissionv1.OperationType{
-											admissionv1.Create,
-											admissionv1.Update,
-										},
-									},
-								},
-								SideEffects: ptr(admissionv1.SideEffectClassNoneOnDryRun),
-							},
-						},
-					},
-				},
-			}, */
 		},
 	}
 
