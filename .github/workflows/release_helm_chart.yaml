@@ -26,8 +26,8 @@ jobs:
             - name: Create Release
               uses: ncipollo/release-action@v1
               with:
-                tag: chart-${{ steps.get-chart-version.outputs.chart_version }}
-                name: chart-${{ steps.get-chart-version.outputs.chart_version }}
+                tag: chart-${{ steps.get-chart-version.outputs.chart_version }}-appVersion-${{ inputs.appVersion }}
+                name: chart-${{ steps.get-chart-version.outputs.chart_version }}-appVersion-${{ inputs.appVersion }}
                 body: | 
                     Helm chart version ${{ steps.get-chart-version.outputs.chart_version }} 
                 token: ${{ github.token }}
@@ -39,7 +39,7 @@ jobs:
             - name: switch to helm repo branch and create/update index.yaml
               run: |
                 git checkout helm-repo
-                cd helm-repo
+                cd repo-helm
                 helm repo index . \
                 --url https://github.com/zak905/kube-ecr-secrets/releases/download/chart-${{ steps.get-chart-version.outputs.latest-tag }}/
 
