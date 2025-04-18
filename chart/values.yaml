@@ -2,7 +2,7 @@ podAnnotations: {}
 
 image:
   repository: ghcr.io/zak905/kube-ecr-secrets-operator/controller-manager
-  #defaults to chart version if not set
+  #defaults to app version if not set
   tag: ""
 
 #resources
