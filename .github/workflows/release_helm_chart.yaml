@@ -41,6 +41,7 @@ jobs:
                 git checkout helm-repo
                 cd repo-helm
                 helm repo index . \
+                --merge \
                 --url https://github.com/zak905/kube-ecr-secrets/releases/download/chart-${{ steps.get-chart-version.outputs.latest-tag }}/
 
                 git config user.email "robot905@g-widgets.com";
