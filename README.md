@@ -2,6 +2,8 @@
 
 ## kube-ecr-secrets-operator:
 
+Kubernetes controller that helps deal with `ImagePullBackOff` errors that may arise if a pod is rescheduled or re-started. A pod can be rescheduled or re-started any time of the day, under specific conditions (eviction, application crash,..etc). Because [AWS ECR](https://aws.amazon.com/ecr/) credentials expire every 12 hours, this may lead to disruptions due to the inability to pull the pod image, especially if the image pull policy is set to `Always`. 
+
 
 ```mermaid
 flowchart TB
@@ -29,10 +31,10 @@ namespace 3"]
     operator --> |"fa:fa-rotate-right rotate every 12h"|c1
 ```
 
-Kubernetes Operator for managing AWS ECR (Elastic Container Registry) secrets cluster wide. ECR docker credentials expire every 12 hours, and need to be refreshed whenever you need to deploy. This operator's goal is to help manage the ECR image pull secrets by refreshing them periodically. It introduces the `AWSECRCredentials` cluster scoped object that:
+kube-ecr-secrets-operator manages AWS ECR (Elastic Container Registry) secrets cluster wide. ECR docker credentials expire every 12 hours, and need to be refreshed periodically to avoid any workload disruption that may arise from a direct human action like a deploy or Kubernetes initiated action like a pod reschedule. It introduces the `AWSECRCredentials` cluster scoped object that:
 
 1. creates a docker credential secret in all the specified namespaces upon creation
-2. Once the secrets are created, the operator takes care of refreshing them periodically (every 12h)
+2. Once the secrets are created, the controller takes care of refreshing them periodically (every 12h)
 
 Here is an example of the `AWSECRCredentials` specification:
 
@@ -56,9 +58,9 @@ spec:
 
 ## Installation and Usage:
 
-The operator expects [cert-manager](https://github.com/cert-manager/cert-manager) to be present in the cluster, since it makes use of `Issuer` and `Certificate` kinds. Because there are some gotchas related to having cert-manager as a subchart(See this [issue](https://github.com/cert-manager/cert-manager/issues/3246) and this [issue](https://github.com/cert-manager/cert-manager/issues/3116) for more details ), kube-ecr-secrets-operator leaves the responsibility to the chart consumer to install it. Installation instructions can be found in the official [docs](https://cert-manager.io/docs/installation/helm/)
+The helm chart expects [cert-manager](https://github.com/cert-manager/cert-manager) to be present in the cluster, since it makes use of `Issuer` and `Certificate` kinds. Because there are some gotchas related to having cert-manager as a subchart(See this [issue](https://github.com/cert-manager/cert-manager/issues/3246) and this [issue](https://github.com/cert-manager/cert-manager/issues/3116) for more details ), kube-ecr-secrets-operator leaves the responsibility to the chart consumer to install it. Installation instructions can be found in the official [docs](https://cert-manager.io/docs/installation/helm/)
 
-The operator can be installed using helm:
+The controller can be installed using helm:
 
 ```
 helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator/repo-helm
@@ -112,9 +114,9 @@ To run tests, the following environment variables need to set `AWS_ACCESS_KEY_ID
 
 ## Kubernetes version compatibility:
 
-The operator is tested against the latest three (minor) Kubernetes versions. 
+The controller is tested against the latest three (minor) Kubernetes versions. 
   
 ## Future improvements ideas
 
-* attempt to remove the dependency on `cert-manager`. Since TLS is only for internal usage, and a self signed certificate is enough, a certificate can be manually created by the operator or by a job when the chart is installed. The certificate can have an expiry date very far ahead in the future so that it does not need to be renewed. 
+* attempt to remove the dependency on `cert-manager`. Since TLS is only for internal usage, and a self signed certificate is enough, a certificate can be manually created by the controller or by a job when the chart is installed. The certificate can have an expiry date very far ahead in the future so that it does not need to be renewed. 
 * making `AWSECRCredentials` manage registries for several AWS regions
