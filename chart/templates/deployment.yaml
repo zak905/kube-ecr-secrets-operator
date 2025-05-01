@@ -24,7 +24,11 @@ spec:
       containers:
       - command:
         - /manager
-        image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion "latest"}}
+        {{- $imageTag := .Values.image.tag -}}
+      {{- if .Chart.AppVersion }}
+        {{- $imageTag = .Chart.AppVersion -}}
+      {{- end }}
+        image: {{ .Values.image.repository }}:{{ $imageTag }}
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
