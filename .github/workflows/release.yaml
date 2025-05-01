@@ -19,7 +19,7 @@ jobs:
             - name: docker login
               run: echo "${{ github.token}}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             - name: build and push docker image
-              run: docker build --push . -t ghcr.io/zak905/kube-ecr-secrets-operator/controller-manager:${{ inputs.release-version}}
+              run: docker build --push . -t ghcr.io/zak905/kube-ecr-secrets-operator/controller-manager:${{ inputs.release-version}} -t ghcr.io/zak905/kube-ecr-secrets-operator/controller-manager:latest
             - uses: ncipollo/release-action@v1
               with:
                 generateReleaseNotes: true

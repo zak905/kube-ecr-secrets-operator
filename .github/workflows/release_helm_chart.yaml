@@ -39,6 +39,7 @@ jobs:
             - name: switch to helm repo branch and create/update index.yaml
               run: |
                 git checkout helm-repo
+                mv *.tgz repo-helm/
                 cd repo-helm
                 helm repo index . \
                 --merge \

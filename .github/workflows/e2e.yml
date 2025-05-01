@@ -24,10 +24,16 @@ jobs:
             --namespace cert-manager \
             --create-namespace \
             --set crds.enabled=true
+        - name: build docker image and load it into kind
+          run: |
+            docker build . -t kube-ecr-secrets-e2e-tests:${{ matrix.kubernetes_version }}
+            kind load docker-image kube-ecr-secrets-e2e-tests:${{ matrix.kubernetes_version }} -n chart-testing
         - name: install kube-ecr-secrets-operator chart
           run: |
-            helm install kube-ecr-secrets-operator chart
-            kubectl wait --timeout=30s --for=jsonpath='{.status.readyReplicas}'=1 deployment/kube-ecr-secrets-operator-controller-manager
+            helm install kube-ecr-secrets-operator chart --set image.repository=kube-ecr-secrets-e2e-tests \
+            --set image.tag=${{ matrix.kubernetes_version }}
+            kubectl wait --timeout=30s --for=jsonpath='{.status.readyReplicas}'=1 \
+            deployment/kube-ecr-secrets-operator-controller-manager
         - name: create kubernetes namespace
           run: |
             kubectl create namespace ns1
