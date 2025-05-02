@@ -31,7 +31,7 @@ jobs:
         - name: install kube-ecr-secrets-operator chart
           run: |
             helm install kube-ecr-secrets-operator chart --set image.repository=kube-ecr-secrets-e2e-tests \
-            --set image.tag=${{ matrix.kubernetes_version }}
+            --set image.tag=${{ matrix.kubernetes_version }} --set image.pullPolicy=Never
             kubectl wait --timeout=30s --for=jsonpath='{.status.readyReplicas}'=1 \
             deployment/kube-ecr-secrets-operator-controller-manager
         - name: create kubernetes namespace

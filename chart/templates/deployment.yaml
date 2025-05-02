@@ -24,8 +24,12 @@ spec:
       containers:
       - command:
         - /manager
-        image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion "latest"}}
-        imagePullPolicy: Always
+        {{- $imageTag := .Values.image.tag -}}
+      {{- if .Chart.AppVersion }}
+        {{- $imageTag = .Chart.AppVersion -}}
+      {{- end }}
+        image: {{ .Values.image.repository }}:{{ $imageTag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         livenessProbe:
           httpGet:
             path: /healthz
