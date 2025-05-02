@@ -3,6 +3,7 @@ podAnnotations: {}
 image:
   repository: ghcr.io/zak905/kube-ecr-secrets-operator/controller-manager
   tag: "latest"
+  pullPolicy: Always
 
 #resources
 resources:

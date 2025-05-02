@@ -29,7 +29,7 @@ spec:
         {{- $imageTag = .Chart.AppVersion -}}
       {{- end }}
         image: {{ .Values.image.repository }}:{{ $imageTag }}
-        imagePullPolicy: Always
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         livenessProbe:
           httpGet:
             path: /healthz
