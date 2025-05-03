@@ -42,8 +42,8 @@ jobs:
                 mv *.tgz repo-helm/
                 cd repo-helm
                 helm repo index . \
-                --merge \
-                --url https://github.com/zak905/kube-ecr-secrets/releases/download/chart-${{ steps.get-chart-version.outputs.chart_version }}/
+                --merge index.yaml \
+                --url https://github.com/zak905/kube-ecr-secrets/releases/download/chart-${{ steps.get-chart-version.outputs.chart_version }}-appVersion-${{ inputs.appVersion }}/
 
                 git config user.email "robot905@g-widgets.com";
                 git config user.name "robot905";
