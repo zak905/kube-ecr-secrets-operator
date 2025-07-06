@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	awsv1alpha1 "github.com/zak905/kube-ecr-secrets-operator/api/v1alpha1"
+	awsv1alpha2 "github.com/zak905/kube-ecr-secrets-operator/api/v1alpha2"
 	"github.com/zak905/kube-ecr-secrets-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -50,6 +51,8 @@ func init() {
 
 	utilruntime.Must(awsv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+
+	utilruntime.Must(awsv1alpha2.AddToScheme(scheme))
 }
 
 func main() {
@@ -93,6 +96,22 @@ func main() {
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
+
+	if err = (&controllers.GenericAWSECRPullSecretReconciler[awsv1alpha2.AWSECRImagePullSecret]{
+		Client:   mgr.GetClient(),
+		Recorder: mgr.GetEventRecorderFor("aws-ecr-pull-secret-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AWSECRImagePullSecret")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.GenericAWSECRPullSecretReconciler[awsv1alpha2.ClusterAWSECRImagePullSecret]{
+		Client:   mgr.GetClient(),
+		Recorder: mgr.GetEventRecorderFor("cluster-aws-pull-secret-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ClusterAWSECRImagePullSecret")
+		os.Exit(1)
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

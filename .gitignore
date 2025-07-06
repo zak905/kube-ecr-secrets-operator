@@ -24,6 +24,7 @@ testbin/*
 *.swo
 *~
 .vscode
+config/
 
 
 vendor

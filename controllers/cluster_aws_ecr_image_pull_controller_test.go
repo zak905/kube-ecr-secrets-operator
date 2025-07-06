@@ -1,19 +1,3 @@
-/*
-Copyright 2022.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controllers
 
 import (
@@ -21,113 +5,28 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	machineryErrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/caarlos0/env/v9"
-	awsv1alpha1 "github.com/zak905/kube-ecr-secrets-operator/api/v1alpha1"
+	awsv1alpha2 "github.com/zak905/kube-ecr-secrets-operator/api/v1alpha2"
+	"github.com/zak905/kube-ecr-secrets-operator/common"
 	corev1 "k8s.io/api/core/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 	//+kubebuilder:scaffold:imports
 )
 
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
-
-var k8sClient client.Client
-var testEnv *envtest.Environment
-var managerCtx context.Context
-var cancelFunc context.CancelFunc
-var testConfig = &TestConfig{}
-
-type TestConfig struct {
-	AWSAccessKeyID     string `env:"AWS_ACCESS_KEY_ID,required"`
-	AWSSecretAccessKey string `env:"AWS_SECRET_ACCESS_KEY,required"`
-	AWSRegion          string `env:"AWS_REGION,required"`
-}
-
-func TestAPIs(t *testing.T) {
-	RegisterFailHandler(Fail)
-
-	RunSpecs(t, "Controller Suite")
-}
-
-var _ = BeforeSuite(func() {
-	Expect(env.Parse(testConfig)).To(Succeed())
-	// inspired from https://www.infracloud.io/blogs/testing-kubernetes-operator-envtest/
-	managerCtx, cancelFunc = context.WithCancel(context.TODO())
-
-	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "chart", "crds")},
-		ErrorIfCRDPathMissing: true,
-		WebhookInstallOptions: envtest.WebhookInstallOptions{
-			Paths: []string{filepath.Join("..", "hack", "unit-test")},
-		},
-	}
-
-	cfg, err := testEnv.Start()
-	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
-
-	err = awsv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	//+kubebuilder:scaffold:scheme
-
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
-
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme.Scheme,
-		WebhookServer: webhook.NewServer(webhook.Options{
-			Host:    testEnv.WebhookInstallOptions.LocalServingHost,
-			Port:    testEnv.WebhookInstallOptions.LocalServingPort,
-			CertDir: testEnv.WebhookInstallOptions.LocalServingCertDir,
-		}),
-		LeaderElection: false,
-	})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
-
-	Expect((&AWSECRCredentialReconciler{Client: mgr.GetClient(), Recorder: mgr.GetEventRecorderFor("aws-ecr-controller")}).
-		SetupWithManager(mgr)).To(Succeed())
-
-	mgr.GetWebhookServer().Register("/validate-mutate-awsecrcredential",
-		&webhook.Admission{
-			Handler: &AWSECRCredentialValidator{
-				Client:  mgr.GetClient(),
-				Decoder: admission.NewDecoder(mgr.GetScheme()),
-			},
-		},
-	)
-
-	go func() {
-		//defer GinkgoRecover()
-		Expect(mgr.Start(managerCtx)).To(Succeed())
-	}()
-})
-
-var _ = Describe("AWSECRCredential", func() {
+var _ = Describe("ClusterAWSECRImagePullSecret", func() {
 	It("creation fails if AWS credentials are invalid", func(ctx context.Context) {
-		awsCredential := awsv1alpha1.AWSECRCredential{
+		awsCredential := awsv1alpha2.ClusterAWSECRImagePullSecret{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "cred",
 			},
-			Spec: awsv1alpha1.AWSECRCredentialSpec{
-				AWSAccess: awsv1alpha1.AWSAccess{},
+			Spec: awsv1alpha2.ClusterAWSECRImagePullSecretSpec{
+				AWSAccess: common.AWSAccess{},
 			},
 		}
 
@@ -136,17 +35,17 @@ var _ = Describe("AWSECRCredential", func() {
 		statusErr := &machineryErrors.StatusError{}
 		Expect(errors.As(err, &statusErr)).To(BeTrue())
 		Expect(statusErr.Status().Reason).To(Equal(v1.StatusReasonForbidden))
-		Expect(statusErr.Status().Message).To(ContainSubstring("aws credentials specified in .spec.awsAccess are invalid or missing permissions"))
+		Expect(statusErr.Status().Message).To(ContainSubstring(invalidCredsMsg))
 	})
 
 	It("creation fails if a namespace does not exist", func(ctx context.Context) {
 		inexistingNamespace := "inexisting"
-		awsCredential := awsv1alpha1.AWSECRCredential{
+		awsCredential := awsv1alpha2.ClusterAWSECRImagePullSecret{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "cred",
 			},
-			Spec: awsv1alpha1.AWSECRCredentialSpec{
-				AWSAccess: awsv1alpha1.AWSAccess{
+			Spec: awsv1alpha2.ClusterAWSECRImagePullSecretSpec{
+				AWSAccess: common.AWSAccess{
 					AccessKeyID:     testConfig.AWSAccessKeyID,
 					SecretAccessKey: testConfig.AWSSecretAccessKey,
 					Region:          testConfig.AWSRegion,
@@ -179,12 +78,12 @@ var _ = Describe("AWSECRCredential", func() {
 			},
 		})).To(Succeed())
 
-		awsCredential := awsv1alpha1.AWSECRCredential{
+		awsCredential := awsv1alpha2.ClusterAWSECRImagePullSecret{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "cred",
 			},
-			Spec: awsv1alpha1.AWSECRCredentialSpec{
-				AWSAccess: awsv1alpha1.AWSAccess{
+			Spec: awsv1alpha2.ClusterAWSECRImagePullSecretSpec{
+				AWSAccess: common.AWSAccess{
 					AccessKeyID:     testConfig.AWSAccessKeyID,
 					SecretAccessKey: testConfig.AWSSecretAccessKey,
 					Region:          testConfig.AWSRegion,
@@ -199,7 +98,7 @@ var _ = Describe("AWSECRCredential", func() {
 		statusErr := &machineryErrors.StatusError{}
 		Expect(errors.As(err, &statusErr)).To(BeTrue())
 		Expect(statusErr.Status().Reason).To(Equal(v1.StatusReasonForbidden))
-		Expect(statusErr.Status().Message).To(ContainSubstring(fmt.Sprintf("secret %s already exists in namespace %s, you can choose a different name", secretName, namespaceName)))
+		Expect(statusErr.Status().Message).To(ContainSubstring(fmt.Sprintf(secretExistsMsg, secretName, namespaceName)))
 	})
 
 	It("creation success", func(ctx context.Context) {
@@ -216,12 +115,12 @@ var _ = Describe("AWSECRCredential", func() {
 
 		secretName := "secret"
 
-		awsCredential := awsv1alpha1.AWSECRCredential{
+		awsCredential := awsv1alpha2.ClusterAWSECRImagePullSecret{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "cred" + timestamp,
 			},
-			Spec: awsv1alpha1.AWSECRCredentialSpec{
-				AWSAccess: awsv1alpha1.AWSAccess{
+			Spec: awsv1alpha2.ClusterAWSECRImagePullSecretSpec{
+				AWSAccess: common.AWSAccess{
 					AccessKeyID:     testConfig.AWSAccessKeyID,
 					SecretAccessKey: testConfig.AWSSecretAccessKey,
 					Region:          testConfig.AWSRegion,
@@ -271,12 +170,12 @@ var _ = Describe("AWSECRCredential", func() {
 
 		secretName := "secret"
 
-		awsCredential := awsv1alpha1.AWSECRCredential{
+		awsCredential := awsv1alpha2.ClusterAWSECRImagePullSecret{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "cred" + timestamp,
 			},
-			Spec: awsv1alpha1.AWSECRCredentialSpec{
-				AWSAccess: awsv1alpha1.AWSAccess{
+			Spec: awsv1alpha2.ClusterAWSECRImagePullSecretSpec{
+				AWSAccess: common.AWSAccess{
 					AccessKeyID:     testConfig.AWSAccessKeyID,
 					SecretAccessKey: testConfig.AWSSecretAccessKey,
 					Region:          testConfig.AWSRegion,
@@ -294,7 +193,47 @@ var _ = Describe("AWSECRCredential", func() {
 		statusErr := &machineryErrors.StatusError{}
 		Expect(errors.As(err, &statusErr)).To(BeTrue())
 		Expect(statusErr.Status().Reason).To(Equal(v1.StatusReasonForbidden))
-		Expect(statusErr.Status().Message).To(ContainSubstring("secretName is immutable"))
+		Expect(statusErr.Status().Message).To(ContainSubstring(secretImmutableMsg))
+	})
+
+	It("update fails if new spec have differenr awsAccess", func(ctx context.Context) {
+		timestamp := fmt.Sprintf("%d", time.Now().UnixMilli())
+		namespaces := []string{"ns1" + timestamp, "ns2" + timestamp}
+
+		for _, ns := range namespaces {
+			Expect(k8sClient.Create(ctx, &corev1.Namespace{
+				ObjectMeta: v1.ObjectMeta{
+					Name: ns,
+				},
+			})).To(Succeed())
+		}
+
+		secretName := "secret"
+
+		awsCredential := awsv1alpha2.ClusterAWSECRImagePullSecret{
+			ObjectMeta: v1.ObjectMeta{
+				Name: "cred" + timestamp,
+			},
+			Spec: awsv1alpha2.ClusterAWSECRImagePullSecretSpec{
+				AWSAccess: common.AWSAccess{
+					AccessKeyID:     testConfig.AWSAccessKeyID,
+					SecretAccessKey: testConfig.AWSSecretAccessKey,
+					Region:          testConfig.AWSRegion,
+				},
+				SecretName: secretName,
+				Namespaces: namespaces,
+			},
+		}
+
+		Expect(k8sClient.Create(ctx, &awsCredential)).To(Succeed())
+
+		awsCredential.Spec.AWSAccess.AccessKeyID = "newAccessKeyId"
+		err := k8sClient.Update(ctx, &awsCredential)
+		Expect(err).To(HaveOccurred())
+		statusErr := &machineryErrors.StatusError{}
+		Expect(errors.As(err, &statusErr)).To(BeTrue())
+		Expect(statusErr.Status().Reason).To(Equal(v1.StatusReasonForbidden))
+		Expect(statusErr.Status().Message).To(ContainSubstring(awsAccessImmutableMsg))
 	})
 
 	It("update succeeds", func(ctx context.Context) {
@@ -311,12 +250,12 @@ var _ = Describe("AWSECRCredential", func() {
 
 		secretName := "secret"
 
-		awsCredential := awsv1alpha1.AWSECRCredential{
+		awsCredential := awsv1alpha2.ClusterAWSECRImagePullSecret{
 			ObjectMeta: v1.ObjectMeta{
 				Name: "cred" + timestamp,
 			},
-			Spec: awsv1alpha1.AWSECRCredentialSpec{
-				AWSAccess: awsv1alpha1.AWSAccess{
+			Spec: awsv1alpha2.ClusterAWSECRImagePullSecretSpec{
+				AWSAccess: common.AWSAccess{
 					AccessKeyID:     testConfig.AWSAccessKeyID,
 					SecretAccessKey: testConfig.AWSSecretAccessKey,
 					Region:          testConfig.AWSRegion,
@@ -338,27 +277,11 @@ var _ = Describe("AWSECRCredential", func() {
 
 		awsCredential.Spec.Namespaces = append(awsCredential.Spec.Namespaces, "newNs"+timestamp)
 		Expect(k8sClient.Update(ctx, &awsCredential)).To(Succeed())
-		secret := &corev1.Secret{}
-		Eventually(func() error {
-			if err := k8sClient.Get(ctx, client.ObjectKey{Name: secretName, Namespace: newNamespace}, secret); err != nil {
-				return err
-			}
-			if secret.Type != corev1.SecretTypeDockerConfigJson {
-				return errors.New("secret type is not kubernetes.io/dockerconfigjson")
-			}
-			return nil
+		Eventually(func(g Gomega) {
+			secret := &corev1.Secret{}
+			g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: secretName, Namespace: newNamespace}, secret)).
+				To(Succeed())
+			g.Expect(secret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
 		}, "10s", "2s")
 	})
 })
-
-var _ = AfterSuite(func() {
-	cancelFunc()
-	// make sure manager context is done
-	<-managerCtx.Done()
-	By("tearing down the test environment")
-	Expect(testEnv.Stop()).To(Succeed())
-})
-
-func ptr[T any](i T) *T {
-	return &i
-}
