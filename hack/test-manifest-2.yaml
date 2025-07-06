@@ -1,5 +1,5 @@
 apiVersion: aws.zakariaamine.com/v1alpha1
-kind: ClusterAWSECRImagePullSecret
+kind: AWSECRImagePullSecret
 metadata:
   name: test-ecr-credentials
 spec:
@@ -8,7 +8,3 @@ spec:
     secretAccessKey: ${AWS_SECRET_ACCESS_KEY}
     region: ${AWS_REGION}
   secretName: ecr-login
-  namespaces:
-    - ns1
-    - ns2
-    - ns3

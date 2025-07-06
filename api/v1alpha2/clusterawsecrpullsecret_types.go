@@ -14,21 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	"github.com/zak905/kube-ecr-secrets-operator/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// AWSECRCredentialSpec defines the desired state of AWSECRCredential
-type AWSECRCredentialSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
+// ClusterAWSECRImagePullSecretSpec defines the desired state of ClusterAWSECRCredentials
+type ClusterAWSECRImagePullSecretSpec struct {
 	//the name of the secret holding the AWS credentials that will be used to talk to AWS to get ECR credentials
 	AWSAccess common.AWSAccess `json:"awsAccess,omitempty"`
 	//+kubebuilder:validation:MaxLength=253
@@ -40,8 +34,9 @@ type AWSECRCredentialSpec struct {
 	Namespaces []string `json:"namespaces,omitempty"`
 }
 
-// AWSECRCredentialStatus defines the current status of a AWSECRCredential
-type AWSECRCredentialStatus struct {
+// ClusterAWSECRImagePullSecretStatus defines the observed state of ClusterAWSECRCredentials.
+// It should always be reconstructable from the state of the cluster and/or outside world.
+type ClusterAWSECRImagePullSecretStatus struct {
 	//+listType=map
 	//+listMapKey=type
 	//+patchStrategy=merge
@@ -53,28 +48,21 @@ type AWSECRCredentialStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:resource:scope=Cluster
 //+kubebuilder:subresource:status
-//+kubebuilder:deprecatedversion:warning="aws.zakariaamine.com/v1alpha1 AWSECRCredential is deprecated and will be automatically converted to aws.zakariaamine.com/v1alpha2 ClusterAWSECRPullSecret"
 
-// AWSECRCredential is the Schema for the awsecrcredentials API.
-// It manages several docker secrets for AWS ECR across different namespaces.
-type AWSECRCredential struct {
+// ClusterAWSECRImagePullSecret is the Schema for the clusterawsecrcredentials API
+type ClusterAWSECRImagePullSecret struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec AWSECRCredentialSpec `json:"spec,omitempty"`
-
-	Status AWSECRCredentialStatus `json:"status,omitempty"`
+	Spec   ClusterAWSECRImagePullSecretSpec   `json:"spec,omitempty"`
+	Status ClusterAWSECRImagePullSecretStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// AWSECRCredentialList contains a list of AWSECRCredential
-type AWSECRCredentialList struct {
+// ClusterAWSECRImagePullSecretList contains a list of ClusterAWSECRCredentials
+type ClusterAWSECRImagePullSecretList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []AWSECRCredential `json:"items"`
-}
-
-func init() {
-	SchemeBuilder.Register(&AWSECRCredential{}, &AWSECRCredentialList{})
+	Items           []ClusterAWSECRImagePullSecret `json:"items"`
 }

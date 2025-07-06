@@ -36,27 +36,33 @@ jobs:
             deployment/kube-ecr-secrets-operator-controller-manager
         - name: create kubernetes namespace
           run: |
+            kubectl create namespace namespaced
             kubectl create namespace ns1
             kubectl create namespace ns2
             kubectl create namespace ns3
-        - name: create a AWSECRCredential CR
+        - name: create ClusterAWSECRImagePullSecret and  ClusterAWSECRImagePullSecret objects
           env:
               AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
               AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
               AWS_REGION: ${{ secrets.AWS_REGION }}
           run: |
+            cat hack/test-manifest-2.yaml | envsubst | kubectl apply -n namespaced -f -
             cat hack/test-manifest.yaml | envsubst | kubectl apply -f -
         - name: checks
           env:
               TEST_POD_IMAGE: ${{ secrets.TEST_POD_IMAGE }}
           run: |
-            kubectl wait --timeout=10s --for=condition=Ready=True awsecrcredential/test-ecr-credentials
+            kubectl wait --timeout=10s --for=condition=Ready=True awsecrimagepullsecret/test-ecr-credentials -n namespaced
+            kubectl wait --timeout=10s --for=condition=Ready=True clusterawsecrimagepullsecret/test-ecr-credentials
+            kubectl get secret ecr-login -n namespaced
             kubectl get secret ecr-login -n ns1
             kubectl get secret ecr-login -n ns2
             kubectl get secret ecr-login -n ns3
+            cat hack/test-pod.yaml | envsubst | kubectl apply -n namespaced -f -
             cat hack/test-pod.yaml | envsubst | kubectl apply -n ns1 -f -
             cat hack/test-pod.yaml | envsubst | kubectl apply -n ns2 -f -
             cat hack/test-pod.yaml | envsubst | kubectl apply -n ns3 -f -
+            kubectl wait --timeout=60s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n namespaced
             kubectl wait --timeout=60s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns1
             kubectl wait --timeout=60s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns2
             kubectl wait --timeout=60s --for=jsonpath='{.status.phase}'=Running pod/test-pod -n ns3
