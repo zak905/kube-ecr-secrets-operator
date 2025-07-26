@@ -191,13 +191,11 @@ func IsAwsAccessChanged(old common.AWSAccess, new common.AWSAccess) bool {
 
 	decodedOldAccessKeyID, err := base64.StdEncoding.DecodeString(old.AccessKeyID)
 	if err != nil {
-		fmt.Println(err.Error())
 		return true
 	}
 
 	decodedNewAccessKeyID, err := base64.StdEncoding.DecodeString(new.AccessKeyID)
 	if err != nil {
-		fmt.Println(err.Error())
 		return true
 	}
 
