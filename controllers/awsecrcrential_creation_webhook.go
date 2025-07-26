@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 
 	"github.com/zak905/kube-ecr-secrets-operator/api/v1alpha2"
+	"github.com/zak905/kube-ecr-secrets-operator/common"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -96,7 +96,7 @@ func (v *AWSECRCredentialValidator) validateAWSECRImagePullSecret(ctx context.Co
 			return admission.Denied(secretImmutableMsg)
 		}
 
-		if !reflect.DeepEqual(oldObj.Spec.AWSAccess, newObj.Spec.AWSAccess) {
+		if IsAwsAccessChanged(oldObj.Spec.AWSAccess, newObj.Spec.AWSAccess) {
 			return admission.Denied(awsAccessImmutableMsg)
 		}
 	}
@@ -176,10 +176,48 @@ func (v *AWSECRCredentialValidator) validateClusterAWSECRImagePullSecret(ctx con
 			return admission.Denied(secretImmutableMsg)
 		}
 
-		if !reflect.DeepEqual(oldObj.Spec.AWSAccess, newObj.Spec.AWSAccess) {
+		if IsAwsAccessChanged(oldObj.Spec.AWSAccess, newObj.Spec.AWSAccess) {
 			return admission.Denied(awsAccessImmutableMsg)
 		}
 	}
 
 	return response
+}
+
+func IsAwsAccessChanged(old common.AWSAccess, new common.AWSAccess) bool {
+	if old.Region != new.Region {
+		return true
+	}
+
+	decodedOldAccessKeyID, err := base64.StdEncoding.DecodeString(old.AccessKeyID)
+	if err != nil {
+		fmt.Println(err.Error())
+		return true
+	}
+
+	decodedNewAccessKeyID, err := base64.StdEncoding.DecodeString(new.AccessKeyID)
+	if err != nil {
+		fmt.Println(err.Error())
+		return true
+	}
+
+	if string(decodedOldAccessKeyID) != string(decodedNewAccessKeyID) {
+		return true
+	}
+
+	decodedOldSecretAccessKey, err := base64.StdEncoding.DecodeString(old.SecretAccessKey)
+	if err != nil {
+		return true
+	}
+
+	decodedNewSecretAccessKey, err := base64.StdEncoding.DecodeString(new.SecretAccessKey)
+	if err != nil {
+		return true
+	}
+
+	if string(decodedOldSecretAccessKey) != string(decodedNewSecretAccessKey) {
+		return true
+	}
+
+	return false
 }

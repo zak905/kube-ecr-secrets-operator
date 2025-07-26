@@ -82,7 +82,7 @@ var _ = Describe("AWSECRImagePullSecret", func() {
 	It("creation success", func(ctx context.Context) {
 		timestamp := fmt.Sprintf("%d", time.Now().UnixMilli())
 
-		secretName := "secret"
+		secretName := "secret" + timestamp
 
 		awsCredential := awsv1alpha2.AWSECRImagePullSecret{
 			ObjectMeta: v1.ObjectMeta{
@@ -115,17 +115,8 @@ var _ = Describe("AWSECRImagePullSecret", func() {
 
 	It("update fails if new spec have different secretName", func(ctx context.Context) {
 		timestamp := fmt.Sprintf("%d", time.Now().UnixMilli())
-		namespaces := []string{"ns1" + timestamp, "ns2" + timestamp}
 
-		for _, ns := range namespaces {
-			Expect(k8sClient.Create(ctx, &corev1.Namespace{
-				ObjectMeta: v1.ObjectMeta{
-					Name: ns,
-				},
-			})).To(Succeed())
-		}
-
-		secretName := "secret"
+		secretName := "secret" + timestamp
 
 		awsCredential := awsv1alpha2.AWSECRImagePullSecret{
 			ObjectMeta: v1.ObjectMeta{
@@ -165,7 +156,7 @@ var _ = Describe("AWSECRImagePullSecret", func() {
 			})).To(Succeed())
 		}
 
-		secretName := "secret"
+		secretName := "secret" + timestamp
 
 		awsCredential := awsv1alpha2.AWSECRImagePullSecret{
 			ObjectMeta: v1.ObjectMeta{
