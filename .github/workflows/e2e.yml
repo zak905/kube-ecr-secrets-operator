@@ -31,7 +31,7 @@ jobs:
         - name: install kube-ecr-secrets-operator chart
           run: |
             helm install kube-ecr-secrets-operator chart --set image.repository=kube-ecr-secrets-e2e-tests \
-            --set image.tag=${{ matrix.kubernetes_version }} --set image.pullPolicy=Never
+            --set image.tag=${{ matrix.kubernetes_version }}
             sleep 10s
             kubectl get po
             kubectl logs -l control-plane=controller-manager
