@@ -1,4 +1,4 @@
-apiVersion: aws.zakariaamine.com/v1alpha1
+apiVersion: aws.zakariaamine.com/v1alpha2
 kind: ClusterAWSECRImagePullSecret
 metadata:
   name: test-ecr-credentials
