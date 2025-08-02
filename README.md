@@ -2,7 +2,7 @@
 
 ## kube-ecr-secrets-operator:
 
-Kubernetes controller that helps deal with `ImagePullBackOff` errors that may arise if a pod is rescheduled or re-started. A pod can be rescheduled or re-started any time of the day, under specific conditions (eviction, application crash,..etc). Because [AWS ECR](https://aws.amazon.com/ecr/) credentials expire every 12 hours, this may lead to disruptions due to the inability to pull the pod image, especially if the image pull policy is set to `Always`. 
+Kubernetes controller that helps dealing with `ImagePullBackOff` errors that may arise if a pod is rescheduled or re-started. A pod can be rescheduled or re-started any time of the day, under specific conditions (eviction, application crash,..etc). Because [AWS ECR](https://aws.amazon.com/ecr/) credentials expire every 12 hours, this may lead to disruptions due to the inability to pull the pod image, especially if the image pull policy is set to `Always`. 
 
 
 ```mermaid
@@ -31,18 +31,33 @@ namespace 3"]
     operator --> |"fa:fa-rotate-right rotate every 12h"|c1
 ```
 
-kube-ecr-secrets-operator manages AWS ECR (Elastic Container Registry) secrets cluster wide. ECR docker credentials expire every 12 hours, and need to be refreshed periodically to avoid any workload disruption that may arise from a direct human action like a deploy or Kubernetes initiated action like a pod reschedule. It introduces the `AWSECRCredentials` cluster scoped object that:
+kube-ecr-secrets-operator manages AWS ECR (Elastic Container Registry) secrets cluster wide. ECR docker credentials expire every 12 hours, and need to be refreshed periodically to avoid any workload disruption that may arise from a direct human action like a deploy or Kubernetes initiated action like a pod reschedule. It introduces the `ClusterAWSECRImagePullSecret` (cluster scoped) and the `AWSECRImagePullSecret` (namespaced) CRDs that:
 
-1. creates a docker credential secret in all the specified namespaces upon creation
+1. creates a docker credential kubernetes secret
 2. Once the secrets are created, the controller takes care of refreshing them periodically (every 12h)
 
-Here is an example of the `AWSECRCredentials` specification:
+## Examples:
 
 ```
-apiVersion: aws.zakariaamine.com/v1alpha1
-kind: AWSECRCredential
+apiVersion: aws.zakariaamine.com/v1alpha2
+kind: AWSECRImagePullSecret
 metadata:
   name: my-ecr-credentials
+spec:
+  awsAccess:
+    accessKeyId: YOUR_ACCESS_KEY_ID
+    secretAccessKey: YOUR_SECRET_ACCESS_KEY
+    region: THE_ECR_REGION
+  secretName: ecr-login
+```
+
+If the secret needs to be managed in several namespaces, the `ClusterAWSECRImagePullSecret` cluster scoped CRD can be used. It has an additional `namespaces` field under `spec` that allows specifying the namespaces.
+
+```
+apiVersion: aws.zakariaamine.com/v1alpha2
+kind: ClusterAWSECRImagePullSecret
+metadata:
+  name: test-ecr-credentials
 spec:
   awsAccess:
     accessKeyId: YOUR_ACCESS_KEY_ID
@@ -53,12 +68,11 @@ spec:
     - ns1
     - ns2
     - ns3
-    - ns4
 ```
 
 ## Installation and Usage:
 
-The helm chart expects [cert-manager](https://github.com/cert-manager/cert-manager) to be present in the cluster, since it makes use of `Issuer` and `Certificate` kinds. Because there are some gotchas related to having cert-manager as a subchart(See this [issue](https://github.com/cert-manager/cert-manager/issues/3246) and this [issue](https://github.com/cert-manager/cert-manager/issues/3116) for more details ), kube-ecr-secrets-operator leaves the responsibility to the chart consumer to install it. Installation instructions can be found in the official [docs](https://cert-manager.io/docs/installation/helm/)
+The helm chart expects [cert-manager](https://github.com/cert-manager/cert-manager) to be present in the cluster, since it makes use of `Issuer` and `Certificate` kinds. Because there are some gotchas related to using cert-manager as a subchart (See this [issue](https://github.com/cert-manager/cert-manager/issues/3246) and this [issue](https://github.com/cert-manager/cert-manager/issues/3116) for more details ), kube-ecr-secrets-operator leaves the responsibility to the chart consumer to install it. Installation instructions can be found in the official [docs](https://cert-manager.io/docs/installation/helm/)
 
 The controller can be installed using helm:
 
@@ -71,19 +85,27 @@ helm install --create-namespace kube-ecr-secrets-operator zakariaamine/kube-ecr-
 
 ```
 
-Once the chart is installed, `AWSECRCredentials` objects can be created.
+Once the chart is installed, `AWSECRImagePullSecret` and `ClusterAWSECRImagePullSecret` objects can be created.
 
-It is, off course, highly recommended to limit the permissions of the IAM user represented by the credentials to ECR only.
+It is, off course, highly recommended to limit the permissions of the IAM user to ECR only. Needless to say, the usage of the root AWS user credentials is highly discouraged.
 
 ## CRDs:
 
-The `AWSECRCredentials` CRD definition is installed with the helm chart using the crds folder. However, a known shortcoming of using helm to install CRDs is the inability to update the CRDs (if there is a change) on subsequent chart upgrades. To overcome the shortcoming, one of the following solutions can help:
+The CRDs definitions are part of the helm chart. A known shortcoming of using helm to install CRDs is the inability to update the CRDs (if there is a change) on subsequent chart upgrades. To overcome the shortcoming, one of the following solutions can help:
 * The chart can be uninstalled and installed when there is a new release with a CRD change.
-* The CRDs can be installed using `kubectl` as a first step `kubectl apply -f https://raw.githubusercontent.com/zak905/kube-ecr-secrets-operator/master/chart/crds/AWSECRCredentials.yaml`, and then the chart can be installed with the `--skip-crds` flag.
+* The CRDs can be installed using `kubectl` as a first step:
+  
+``` 
+kubectl apply -f https://raw.githubusercontent.com/zak905/kube-ecr-secrets-operator/refs/heads/master/chart/crds/aws.zakariaamine.com_awsecrcredentials.yaml
+kubectl apply -f https://raw.githubusercontent.com/zak905/kube-ecr-secrets-operator/refs/heads/master/chart/crds/aws.zakariaamine.com_awsecrimagepullsecrets.yaml
+kubectl apply -f https://raw.githubusercontent.com/zak905/kube-ecr-secrets-operator/refs/heads/master/chart/crds/aws.zakariaamine.com_clusterawsecrimagepullsecrets.yaml
+```
 
-## Troubleshooting:
+and then the chart can be installed with the `--skip-crds` flag.
 
-In case an unexpected behavior is observed, the first step for troubleshooting is to inspect the `status` of `AWSECRCredentials` object: `kubectl get awsecrcredentials the-name-of-the-object`. The `status` shows informations about the current state of the object. For example:
+## Monitoring and Troubleshooting:
+
+The CRs status stanza reports the current state of the CR objects. In case an unexpected behavior is observed, the first step for troubleshooting is to inspect the `status`: `kubectl get awsecrimagepullsecret the-name-of-the-object`. For example:
 
 ```
   status:
@@ -98,15 +120,13 @@ In case an unexpected behavior is observed, the first step for troubleshooting i
 
 ```
 
-The `status`  provides enough information to identify potential issues. Additionally, the contoller emits Kubernetes events whenever an action is taken. The following event can be observed: `SecretCreationSuccess`, `SecretUpdateSuccess`, `CreateSecretError`, `UpdateSecretError`.
+The `status`  provides enough information to identify potential issues. Additionally, the controller emits Kubernetes events whenever an action is taken. The following events can be observed: `SecretCreationSuccess`, `SecretUpdateSuccess`, `CreateSecretError`, `UpdateSecretError`.
 
-
-The logs of the contoller pod can also help: `kubectl logs -l app.kubernetes.io/name=kube-ecr-secrets-operator -n kube-ecr-secrets-operator-system `
+The logs of the controller pod can also help: `kubectl logs -l app.kubernetes.io/name=kube-ecr-secrets-operator -n kube-ecr-secrets-operator-system `
 
 ## Shortcomings:
 
 * Depends on [cert-manager](https://github.com/cert-manager/cert-manager) (for now)
-* An `AWSECRCredentials` object can manage only a single AWS region, which means that if you have multiple registries in different regions, you need to create an `AWSECRCredentials` for each.
 
 ## Running Tests:
 
@@ -118,5 +138,4 @@ The controller is tested against the latest three (minor) Kubernetes versions.
   
 ## Future improvements ideas
 
-* attempt to remove the dependency on `cert-manager`. Since TLS is only for internal usage, and a self signed certificate is enough, a certificate can be manually created by the controller or by a job when the chart is installed. The certificate can have an expiry date very far ahead in the future so that it does not need to be renewed. 
-* making `AWSECRCredentials` manage registries for several AWS regions
+* attempt to remove the dependency on `cert-manager`. Since TLS is only for internal usage, and a self signed certificate is enough, a certificate can be manually created by the controller or by a job when the chart is installed. The certificate can have an expiry date very far ahead in the future so that it does not need to be renewed.

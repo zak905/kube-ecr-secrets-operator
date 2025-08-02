@@ -6,16 +6,15 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - namespaces
+  - events
   verbs:
-  - list
-  - watch
+  - create
+  - patch
 - apiGroups:
   - ""
   resources:
-  - pods
+  - namespaces
   verbs:
-  - get
   - list
   - watch
 - apiGroups:
@@ -39,27 +38,33 @@ rules:
   - delete
   - get
   - list
+  - watch
+- apiGroups:
+  - aws.zakariaamine.com
+  resources:
+  - awsecrimagepullsecrets
+  - clusterawsecrimagepullsecrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
   - patch
   - update
   - watch
 - apiGroups:
   - aws.zakariaamine.com
   resources:
-  - awsecrcredentials/finalizers
+  - awsecrimagepullsecrets/finalizers
+  - clusterawsecrimagepullsecrets/finalizers
   verbs:
   - update
 - apiGroups:
   - aws.zakariaamine.com
   resources:
-  - awsecrcredentials/status
+  - awsecrimagepullsecrets/status
+  - clusterawsecrimagepullsecrets/status
   verbs:
   - get
   - patch
   - update
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch

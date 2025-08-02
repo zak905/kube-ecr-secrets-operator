@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.24.1 AS builder
+FROM golang:1.24.4 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -13,6 +13,7 @@ RUN go mod download
 COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
+COPY common/ common/
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
