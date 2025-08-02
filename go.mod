@@ -3,7 +3,7 @@ module github.com/zak905/kube-ecr-secrets-operator
 go 1.24.1
 
 require (
-	github.com/aws/aws-sdk-go-v2/config v1.29.17
+	github.com/aws/aws-sdk-go-v2/config v1.30.2
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.2
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.47.1
 	github.com/caarlos0/env/v9 v9.0.0
