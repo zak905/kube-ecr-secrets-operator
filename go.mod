@@ -1,6 +1,6 @@
 module github.com/zak905/kube-ecr-secrets-operator
 
-go 1.24.4
+go 1.25.1
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.30.2
