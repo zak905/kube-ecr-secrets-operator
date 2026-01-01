@@ -239,7 +239,7 @@ func (r *GenericAWSECRPullSecretReconciler[a]) setStatus(ctx context.Context,
 		return fmt.Errorf("failed updating AWSECRCredential status: %w", err)
 	}
 
-	log.Info("status update successfully")
+	log.Info("status updated successfully")
 
 	return nil
 }
@@ -270,7 +270,7 @@ func (r *GenericAWSECRPullSecretReconciler[a]) createOrUpdateImagePullSecret(ctx
 			return wrappedErr
 		}
 
-		log.Info("creating secret", "namespace", namespace)
+		log.Info("creating secret")
 
 		dockerSecret := newDockerSecret(ecrcredentials, secretName, dockerConfig, expiresAt)
 		dockerSecret.Namespace = namespace

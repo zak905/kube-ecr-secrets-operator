@@ -45,8 +45,7 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return result, err
 	}
 
-	log.Info("object of type AWSECRCredential is deprecated, converting to ClusterAWSECRImagePullSecret",
-		"name", awsECRCredentials.Name)
+	log.Info("object of type AWSECRCredential is deprecated, converting to ClusterAWSECRImagePullSecret")
 
 	converted := toAlpha1V2ClusterAWSECRImagePullSecret(awsECRCredentials)
 
@@ -54,14 +53,13 @@ func (r *AWSECRCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return result, err
 	}
 
-	log.Info("object of type AWSECRCredential deleted successfully, attempting to create a new ClusterAWSECRImagePullSecret",
-		"name", awsECRCredentials.Name)
+	log.Info("object of type AWSECRCredential deleted successfully, attempting to create a new ClusterAWSECRImagePullSecret")
 
 	if err := r.Client.Create(ctx, converted); err != nil {
 		return result, err
 	}
 
-	log.Info("ClusterAWSECRImagePullSecret created successfully", "name", awsECRCredentials.Name)
+	log.Info("ClusterAWSECRImagePullSecret created successfully")
 
 	return result, nil
 }
