@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.51.1
 	github.com/caarlos0/env/v9 v9.0.0
 	github.com/onsi/ginkgo/v2 v2.27.2
-	github.com/onsi/gomega v1.38.2
+	github.com/onsi/gomega v1.38.3
 	go.uber.org/zap v1.27.1
 	k8s.io/api v0.35.0
 	k8s.io/apimachinery v0.35.0
