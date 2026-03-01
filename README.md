@@ -2,7 +2,7 @@
 
 ## kube-ecr-secrets-operator:
 
-Kubernetes controller that helps dealing with `ImagePullBackOff` errors that may arise if a pod is rescheduled or re-started. A pod can be rescheduled or re-started any time of the day, under specific conditions (eviction, application crash,..etc). Because [AWS ECR](https://aws.amazon.com/ecr/) credentials expire every 12 hours, this may lead to disruptions due to the inability to pull the pod image, especially if the image pull policy is set to `Always`. 
+Kubernetes operator that helps dealing with `ImagePullBackOff` errors that may arise if a pod is rescheduled or re-started. A pod can be rescheduled or re-started any time of the day, under specific conditions (eviction, application crash,..etc). Because [AWS ECR](https://aws.amazon.com/ecr/) credentials expire every 12 hours, this may lead to disruptions due to the inability to pull the pod image, especially if the image pull policy is set to `Always`. 
 
 
 ```mermaid
@@ -72,9 +72,7 @@ spec:
 
 ## Installation and Usage:
 
-The helm chart expects [cert-manager](https://github.com/cert-manager/cert-manager) to be present in the cluster, since it makes use of `Issuer` and `Certificate` kinds. Because there are some gotchas related to using cert-manager as a subchart (See this [issue](https://github.com/cert-manager/cert-manager/issues/3246) and this [issue](https://github.com/cert-manager/cert-manager/issues/3116) for more details ), kube-ecr-secrets-operator leaves the responsibility to the chart consumer to install it. Installation instructions can be found in the official [docs](https://cert-manager.io/docs/installation/helm/)
-
-The controller can be installed using helm:
+The operator can be installed using helm:
 
 ```
 helm repo add zakariaamine https://zak905.github.io/kube-ecr-secrets-operator/repo-helm
@@ -124,18 +122,10 @@ The `status`  provides enough information to identify potential issues. Addition
 
 The logs of the controller pod can also help: `kubectl logs -l app.kubernetes.io/name=kube-ecr-secrets-operator -n kube-ecr-secrets-operator-system `
 
-## Shortcomings:
-
-* Depends on [cert-manager](https://github.com/cert-manager/cert-manager) (for now)
-
 ## Running Tests:
 
 To run tests, the following environment variables need to set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` in the terminal from which the tests are run. Afterwards, the tests can be run using: `make unit-test`
 
 ## Kubernetes version compatibility:
 
-The controller is tested against the latest three (minor) Kubernetes versions. 
-  
-## Future improvements ideas
-
-* attempt to remove the dependency on `cert-manager`. Since TLS is only for internal usage, and a self signed certificate is enough, a certificate can be manually created by the controller or by a job when the chart is installed. The certificate can have an expiry date very far ahead in the future so that it does not need to be renewed.
+The controller is tested against the latest three (minor) Kubernetes versions.

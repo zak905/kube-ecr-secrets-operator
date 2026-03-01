@@ -4,6 +4,13 @@ metadata:
   name: {{ include "kube-ecr-secrets-operator.name" . }}-manager-role
 rules:
 - apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  verbs:
+  - get
+  - patch
+- apiGroups:
   - ""
   resources:
   - events
