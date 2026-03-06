@@ -38,7 +38,7 @@ spec:
           openssl genrsa -out "$CERT_DIR/tls.key" 2048
           printf '[req]\nreq_extensions = v3_req\ndistinguished_name = req_distinguished_name\n[req_distinguished_name]\n[v3_req]\nbasicConstraints = CA:FALSE\nkeyUsage = digitalSignature, keyEncipherment\nsubjectAltName = @alt_names\n[alt_names]\n' > /tmp/san.cnf
           printf 'DNS.1 = %s.%s.svc\nDNS.2 = %s.%s.svc.cluster.local\n' "$SERVICE_NAME" "$NAMESPACE" "$SERVICE_NAME" "$NAMESPACE" >> /tmp/san.cnf
-          openssl req -new -key "$CERT_DIR/tls.key" -out /tmp/server.csr -subj "/CN=${SERVICE_NAME}.${NAMESPACE}.svc" -config /tmp/san.cnf
+          openssl req -new -key "$CERT_DIR/tls.key" -out /tmp/server.csr -subj "/CN=kube-ecr-secrets-operator" -config /tmp/san.cnf
           openssl x509 -req -days 36500 -in /tmp/server.csr -CA /tmp/ca.crt -CAkey /tmp/ca.key -CAcreateserial -out "$CERT_DIR/tls.crt" -extensions v3_req -extfile /tmp/san.cnf
           CA_BUNDLE=$(base64 -w 0 /tmp/ca.crt)
           TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
@@ -50,6 +50,7 @@ spec:
             "https://kubernetes.default.svc/apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations/${WEBHOOK_CONFIG_NAME}" \
             -d "[{\"op\": \"add\", \"path\": \"/webhooks/0/clientConfig/caBundle\", \"value\": \"${CA_BUNDLE}\"}]"
           echo "Done: TLS certificate generated and webhook configuration patched."
+          chown 65532:65532 $CERT_DIR/tls.key
         env:
         - name: SERVICE_NAME
           value: {{ include "kube-ecr-secrets-operator.name" . }}-webhook-service
@@ -57,6 +58,7 @@ spec:
           value: {{ include "kube-ecr-secrets-operator.name" . }}-mutating-webhook-configuration
         securityContext:
           allowPrivilegeEscalation: false
+          runAsNonRoot: false
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
