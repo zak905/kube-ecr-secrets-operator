@@ -6,24 +6,19 @@ on:
 jobs:
     e2e-test:
       runs-on: ubuntu-latest
-      strategy:
-        matrix:
-          kubernetes_version: ["v1.32.0", "v1.31.0", "v1.30.0"]
       steps:
         - name: Create k8s Kind Cluster
           uses: helm/kind-action@v1
-          with:
-            node_image: kindest/node:${{ matrix.kubernetes_version }}
         - uses: azure/setup-helm@v4.2.0
         - uses: actions/checkout@v4
         - name: build docker image and load it into kind
           run: |
-            docker build . -t kube-ecr-secrets-e2e-tests:${{ matrix.kubernetes_version }}
-            kind load docker-image kube-ecr-secrets-e2e-tests:${{ matrix.kubernetes_version }} -n chart-testing
+            docker build . -t kube-ecr-secrets-e2e-tests:e2e
+            kind load docker-image kube-ecr-secrets-e2e-tests:e2e -n chart-testing
         - name: install kube-ecr-secrets-operator chart
           run: |
             helm install kube-ecr-secrets-operator chart --set image.repository=kube-ecr-secrets-e2e-tests \
-            --set image.tag=${{ matrix.kubernetes_version }} --set image.pullPolicy=IfNotPresent
+            --set image.tag=e2e --set image.pullPolicy=IfNotPresent
             kubectl wait --timeout=30s --for=jsonpath='{.status.readyReplicas}'=1 \
             deployment/kube-ecr-secrets-operator-controller-manager
         - name: create kubernetes namespace
