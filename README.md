@@ -85,6 +85,8 @@ helm install --create-namespace kube-ecr-secrets-operator zakariaamine/kube-ecr-
 
 Once the chart is installed, `AWSECRImagePullSecret` and `ClusterAWSECRImagePullSecret` objects can be created.
 
+For the admission webhooks server TLS, the operators uses a Kubernetes Job that generates a long lived self-signed certificate using openssl and stores it in a Secret. The Job makes use of the helm `post-install` and `post-upgrade` hooks. 
+
 It is, off course, highly recommended to limit the permissions of the IAM user to ECR only. Needless to say, the usage of the root AWS user credentials is highly discouraged.
 
 ## CRDs:
@@ -125,7 +127,3 @@ The logs of the controller pod can also help: `kubectl logs -l app.kubernetes.io
 ## Running Tests:
 
 To run tests, the following environment variables need to set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` in the terminal from which the tests are run. Afterwards, the tests can be run using: `make unit-test`
-
-## Kubernetes version compatibility:
-
-The controller is tested against the latest three (minor) Kubernetes versions.

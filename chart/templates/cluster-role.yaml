@@ -10,6 +10,8 @@ rules:
   verbs:
   - get
   - patch
+  resourceNames:
+  - {{ include "kube-ecr-secrets-operator.name" . }}-mutating-webhook-configuration
 - apiGroups:
   - ""
   resources:
