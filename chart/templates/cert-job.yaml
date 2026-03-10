@@ -50,21 +50,15 @@ spec:
                 -H "Content-Type: application/json" \
                 "${APISERVER}/api/v1/namespaces/${NAMESPACE}/secrets" \
                 -d "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${SECRET_NAME}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"kubernetes.io/tls\",\"data\":{\"tls.crt\":\"${TLS_CRT}\",\"tls.key\":\"${TLS_KEY}\"}}"
-            else
-              curl -fsv -X PATCH \
+              curl -sf -X PATCH \
                 --cacert "$K8S_CA" \
                 -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/merge-patch+json" \
-                "${APISERVER}/api/v1/namespaces/${NAMESPACE}/secrets/${SECRET_NAME}" \
-                -d "{\"data\":{\"tls.crt\":\"${TLS_CRT}\",\"tls.key\":\"${TLS_KEY}\"}}"
-            fi
-            curl -svf -X PATCH \
-              --cacert "$K8S_CA" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json-patch+json" \
-              "${APISERVER}/apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations/${WEBHOOK_CONFIG_NAME}" \
-              -d "[{\"op\": \"add\", \"path\": \"/webhooks/0/clientConfig/caBundle\", \"value\": \"${CA_BUNDLE}\"}]"
-            echo "Done: TLS certificate created/updated and webhook configuration patched."
+                -H "Content-Type: application/json-patch+json" \
+                "${APISERVER}/apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations/${WEBHOOK_CONFIG_NAME}" \
+                -d "[{\"op\": \"add\", \"path\": \"/webhooks/0/clientConfig/caBundle\", \"value\": \"${CA_BUNDLE}\"}]"
+              echo "Done: TLS certificate created/updated and webhook configuration patched."
+              fi
+              echo "Certificate exists. Nothting to do"
           env:
           - name: SERVICE_NAME
             value: {{ include "kube-ecr-secrets-operator.name" . }}-webhook-service
