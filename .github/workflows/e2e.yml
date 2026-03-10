@@ -6,14 +6,9 @@ on:
 jobs:
     e2e-test:
       runs-on: ubuntu-latest
-      strategy:
-        matrix:
-          kubernetes_version: ["v1.32.0", "v1.31.0", "v1.30.0"]
       steps:
         - name: Create k8s Kind Cluster
           uses: helm/kind-action@v1
-          with:
-            node_image: kindest/node:${{ matrix.kubernetes_version }}
         - uses: azure/setup-helm@v4.2.0
         - uses: actions/checkout@v4
         - name: build docker image and load it into kind
