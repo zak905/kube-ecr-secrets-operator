@@ -15,7 +15,7 @@ spec:
       securityContext:
         runAsNonRoot: false
       containers:
-        - name: cert-manager
+        - name: webhook-cert-init
           image: alpine:3.21
           command:
           - sh
@@ -51,14 +51,14 @@ spec:
                 "${APISERVER}/api/v1/namespaces/${NAMESPACE}/secrets" \
                 -d "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${SECRET_NAME}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"kubernetes.io/tls\",\"data\":{\"tls.crt\":\"${TLS_CRT}\",\"tls.key\":\"${TLS_KEY}\"}}"
             else
-              curl -sf -X PUT \
+              curl -fsv -X PATCH \
                 --cacert "$K8S_CA" \
                 -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
+                -H "Content-Type: application/merge-patch+json" \
                 "${APISERVER}/api/v1/namespaces/${NAMESPACE}/secrets/${SECRET_NAME}" \
-                -d "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${SECRET_NAME}\",\"namespace\":\"${NAMESPACE}\"},\"type\":\"kubernetes.io/tls\",\"data\":{\"tls.crt\":\"${TLS_CRT}\",\"tls.key\":\"${TLS_KEY}\"}}"
+                -d "{\"data\":{\"tls.crt\":\"${TLS_CRT}\",\"tls.key\":\"${TLS_KEY}\"}}"
             fi
-            curl -sf -X PATCH \
+            curl -svf -X PATCH \
               --cacert "$K8S_CA" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json-patch+json" \
