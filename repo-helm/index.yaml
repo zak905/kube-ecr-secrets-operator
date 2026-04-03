@@ -3,10 +3,10 @@ entries:
   kube-ecr-secrets-operator:
   - apiVersion: v2
     appVersion: 0.2.6
-    created: "2026-03-11T23:06:30.392395072Z"
+    created: "2026-04-03T21:57:34.212530198Z"
     description: Kubernetes Operator for managing AWS ECR (Elastic Container Registry)
       secrets cluster wide.
-    digest: a92b5be72d00a68b9d41d1e460ab33b8f8fff791ed4103686f37539f993c38bf
+    digest: 81fa944bdf51af36effe260a1654e16f19d8a3463cb15a45b015704847b2e8a6
     home: https://github.com/zak905/kube-ecr-secrets-operator
     keywords:
     - AWS
@@ -111,4 +111,4 @@ entries:
     urls:
     - https://github.com/zak905/kube-ecr-secrets-operator/releases/download/chart-0.1.0-appVersion-0.1.0/kube-ecr-secrets-operator-0.1.0.tgz
     version: 0.1.0
-generated: "2026-03-11T23:06:30.391839147Z"
+generated: "2026-04-03T21:57:34.211740839Z"
