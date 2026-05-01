@@ -30,6 +30,7 @@ type AWSECRImagePullSecretStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName=aeps
 
 // AWSECRImagePullSecret is the Schema for the awsecrimagepullsecrets API
 // +k8s:openapi-gen=true
