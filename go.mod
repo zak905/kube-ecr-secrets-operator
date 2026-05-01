@@ -5,7 +5,7 @@ go 1.26.2
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.16
-	github.com/aws/aws-sdk-go-v2/service/ecr v1.56.2
+	github.com/aws/aws-sdk-go-v2/service/ecr v1.57.2
 	github.com/caarlos0/env/v9 v9.0.0
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
