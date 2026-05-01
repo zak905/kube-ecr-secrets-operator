@@ -46,7 +46,7 @@ type ClusterAWSECRImagePullSecretStatus struct {
 }
 
 //+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Cluster
+//+kubebuilder:resource:scope=Cluster,shortName=caeps
 //+kubebuilder:subresource:status
 
 // ClusterAWSECRImagePullSecret is the Schema for the clusterawsecrcredentials API
