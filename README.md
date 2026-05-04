@@ -124,11 +124,12 @@ The `status`  provides enough information to identify potential issues. Addition
 
 The logs of the controller pod can also help: `kubectl logs -l app.kubernetes.io/name=kube-ecr-secrets-operator -n kube-ecr-secrets-operator-system`
 
-## Short Names:
+## Short names:
 
 For easy typing and memorizing, the CRDs have the following short names:
 
 `AWSECRImagePullSecret` -> `aeps`
+
 `ClusterAWSECRImagePullSecret` -> `caeps`
 
 example: `kubectl get aeps`
