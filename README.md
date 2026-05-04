@@ -122,7 +122,16 @@ The CRs status stanza reports the current state of the CR objects. In case an un
 
 The `status`  provides enough information to identify potential issues. Additionally, the controller emits Kubernetes events whenever an action is taken. The following events can be observed: `SecretCreationSuccess`, `SecretUpdateSuccess`, `CreateSecretError`, `UpdateSecretError`.
 
-The logs of the controller pod can also help: `kubectl logs -l app.kubernetes.io/name=kube-ecr-secrets-operator -n kube-ecr-secrets-operator-system `
+The logs of the controller pod can also help: `kubectl logs -l app.kubernetes.io/name=kube-ecr-secrets-operator -n kube-ecr-secrets-operator-system`
+
+## Short Names:
+
+For easy typing and memorizing, the CRDs have the following short names:
+
+`AWSECRImagePullSecret` -> `aeps`
+`ClusterAWSECRImagePullSecret` -> `caeps`
+
+example: `kubectl get aeps`
 
 ## Running Tests:
 
