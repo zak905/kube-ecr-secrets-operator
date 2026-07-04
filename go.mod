@@ -9,8 +9,8 @@ require (
 	github.com/caarlos0/env/v9 v9.0.0
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.41.0
-	k8s.io/api v0.36.1
-	k8s.io/apimachinery v0.36.1
+	k8s.io/api v0.36.2
+	k8s.io/apimachinery v0.36.2
 	k8s.io/client-go v0.36.0
 	sigs.k8s.io/controller-runtime v0.24.0
 )
